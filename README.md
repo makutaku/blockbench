@@ -25,12 +25,29 @@ blockbench list /path/to/server
 
 # Test operations with dry-run
 blockbench install addon.mcaddon /path/to/server --dry-run
+
+# Show version information
+blockbench version
+blockbench version --json
+blockbench --version
 ```
 
 ## Installation
 
+### From releases (recommended)
+Download the latest binary from the [releases page](https://github.com/makutaku/blockbench/releases).
+
+### Using Go
 ```bash
 go install github.com/makutaku/blockbench/cmd/blockbench@latest
+```
+
+### Build from source
+```bash
+git clone https://github.com/makutaku/blockbench.git
+cd blockbench
+make build
+# Binary will be in ./bin/blockbench
 ```
 
 ## Development
@@ -38,5 +55,19 @@ go install github.com/makutaku/blockbench/cmd/blockbench@latest
 ```bash
 git clone https://github.com/makutaku/blockbench.git
 cd blockbench
-go build ./cmd/blockbench
+
+# Development build (no version injection)
+make build-dev
+
+# Production build with version info
+make build
+
+# Run tests
+make test
+
+# Run all quality checks
+make check
+
+# Cross-platform build
+make build-all
 ```

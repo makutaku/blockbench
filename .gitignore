@@ -30,6 +30,11 @@ Thumbs.db
 # Build output
 /bin/
 /dist/
+blockbench
+*.exe
+
+# Release artifacts
+release-notes-*.md
 
 # Temporary files
 /tmp/

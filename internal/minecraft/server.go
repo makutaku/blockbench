@@ -14,7 +14,7 @@ type Server struct {
 // NewServer creates a new Server instance
 func NewServer(serverRoot string) (*Server, error) {
 	paths := NewServerPaths(serverRoot)
-	
+
 	if err := paths.ValidateServerStructure(); err != nil {
 		return nil, fmt.Errorf("invalid server structure: %w", err)
 	}
@@ -27,10 +27,10 @@ func NewServer(serverRoot string) (*Server, error) {
 // InstallPack installs a pack to the server
 func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	packType := manifest.GetPackType()
-	
+
 	var targetDir string
 	var configFile string
-	
+
 	switch packType {
 	case PackTypeBehavior:
 		targetDir = s.Paths.BehaviorPacksDir
@@ -58,7 +58,7 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	}
 
 	config = AddPackToConfig(config, manifest.Header.UUID, manifest.Header.Version)
-	
+
 	if err := SaveWorldConfig(configFile, config); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
@@ -79,13 +79,13 @@ func (s *Server) UninstallPack(packID string) error {
 		if err := s.removePackDir(s.Paths.BehaviorPacksDir, packID); err != nil {
 			return fmt.Errorf("failed to remove behavior pack directory: %w", err)
 		}
-		
+
 		// Update config
 		behaviorConfig = RemovePackFromConfig(behaviorConfig, packID)
 		if err := SaveWorldConfig(s.Paths.WorldBehaviorPacks, behaviorConfig); err != nil {
 			return fmt.Errorf("failed to save behavior config: %w", err)
 		}
-		
+
 		return nil
 	}
 
@@ -100,13 +100,13 @@ func (s *Server) UninstallPack(packID string) error {
 		if err := s.removePackDir(s.Paths.ResourcePacksDir, packID); err != nil {
 			return fmt.Errorf("failed to remove resource pack directory: %w", err)
 		}
-		
+
 		// Update config
 		resourceConfig = RemovePackFromConfig(resourceConfig, packID)
 		if err := SaveWorldConfig(s.Paths.WorldResourcePacks, resourceConfig); err != nil {
 			return fmt.Errorf("failed to save resource config: %w", err)
 		}
-		
+
 		return nil
 	}
 
@@ -129,13 +129,13 @@ func (s *Server) ListInstalledPacks() ([]InstalledPack, error) {
 			Version: pack.Version,
 			Type:    PackTypeBehavior,
 		}
-		
+
 		// Try to load manifest for more details
 		if manifest, err := s.loadPackManifest(s.Paths.BehaviorPacksDir, pack.PackID); err == nil {
 			installedPack.Name = manifest.GetDisplayName()
 			installedPack.Description = manifest.Header.Description
 		}
-		
+
 		packs = append(packs, installedPack)
 	}
 
@@ -151,13 +151,13 @@ func (s *Server) ListInstalledPacks() ([]InstalledPack, error) {
 			Version: pack.Version,
 			Type:    PackTypeResource,
 		}
-		
+
 		// Try to load manifest for more details
 		if manifest, err := s.loadPackManifest(s.Paths.ResourcePacksDir, pack.PackID); err == nil {
 			installedPack.Name = manifest.GetDisplayName()
 			installedPack.Description = manifest.Header.Description
 		}
-		
+
 		packs = append(packs, installedPack)
 	}
 
@@ -184,15 +184,15 @@ func (s *Server) removePackDir(baseDir, packID string) error {
 		if !entry.IsDir() {
 			continue
 		}
-		
+
 		packPath := filepath.Join(baseDir, entry.Name())
 		manifestPath := filepath.Join(packPath, "manifest.json")
-		
+
 		manifest, err := ParseManifest(manifestPath)
 		if err != nil {
 			continue // Skip if can't read manifest
 		}
-		
+
 		if manifest.Header.UUID == packID {
 			return os.RemoveAll(packPath)
 		}
@@ -212,13 +212,13 @@ func (s *Server) loadPackManifest(baseDir, packID string) (*Manifest, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		
+
 		manifestPath := filepath.Join(baseDir, entry.Name(), "manifest.json")
 		manifest, err := ParseManifest(manifestPath)
 		if err != nil {
 			continue // Skip if can't read manifest
 		}
-		
+
 		if manifest.Header.UUID == packID {
 			return manifest, nil
 		}

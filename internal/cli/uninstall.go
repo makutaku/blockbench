@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/makutaku/blockbench/internal/addon"
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/spf13/cobra"
 )
 
 func NewUninstallCommand() *cobra.Command {
@@ -28,7 +28,7 @@ The addon will be safely removed with dependency checking and backup creation.`,
 func runUninstall(cmd *cobra.Command, args []string) error {
 	identifier := args[0]
 	serverPath := args[1]
-	
+
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	uuid, _ := cmd.Flags().GetString("uuid")
@@ -64,7 +64,7 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 
 	// Perform uninstallation
 	result, err := uninstaller.UninstallAddon(identifier, options)
-	
+
 	// Display results
 	if len(result.Warnings) > 0 {
 		fmt.Println("Warnings:")

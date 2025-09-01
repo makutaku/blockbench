@@ -6,8 +6,8 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/spf13/cobra"
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/spf13/cobra"
 )
 
 func NewListCommand() *cobra.Command {
@@ -27,7 +27,7 @@ Shows addon names, UUIDs, versions, and types (behavior/resource packs).`,
 
 func runList(cmd *cobra.Command, args []string) error {
 	serverPath := args[0]
-	
+
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
@@ -83,8 +83,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 
 		version := fmt.Sprintf("%d.%d.%d", pack.Version[0], pack.Version[1], pack.Version[2])
-		
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", 
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 			name, pack.Type, pack.PackID, version, description)
 	}
 

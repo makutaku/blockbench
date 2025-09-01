@@ -9,25 +9,25 @@ import (
 
 // ManifestHeader represents the header section of a manifest.json file
 type ManifestHeader struct {
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	UUID        string    `json:"uuid"`
-	Version     [3]int    `json:"version"`
-	MinVersion  [3]int    `json:"min_engine_version,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	UUID        string `json:"uuid"`
+	Version     [3]int `json:"version"`
+	MinVersion  [3]int `json:"min_engine_version,omitempty"`
 }
 
 // ManifestModule represents a module in the manifest
 type ManifestModule struct {
-	Type        string    `json:"type"`
-	UUID        string    `json:"uuid"`
-	Version     [3]int    `json:"version"`
-	Description string    `json:"description,omitempty"`
+	Type        string `json:"type"`
+	UUID        string `json:"uuid"`
+	Version     [3]int `json:"version"`
+	Description string `json:"description,omitempty"`
 }
 
 // ManifestDependency represents a dependency on another pack
 type ManifestDependency struct {
-	UUID    string  `json:"uuid"`
-	Version [3]int  `json:"version"`
+	UUID    string `json:"uuid"`
+	Version [3]int `json:"version"`
 }
 
 // Manifest represents a complete manifest.json file

@@ -9,12 +9,12 @@ import (
 func ValidateUUID(uuid string) bool {
 	// UUID regex pattern (with or without dashes)
 	uuidPattern := `^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$`
-	
+
 	matched, err := regexp.MatchString(uuidPattern, uuid)
 	if err != nil {
 		return false
 	}
-	
+
 	return matched
 }
 
@@ -23,12 +23,12 @@ func NormalizeUUID(uuid string) string {
 	// Remove all dashes first
 	clean := strings.ReplaceAll(uuid, "-", "")
 	clean = strings.ToLower(clean)
-	
+
 	// Add dashes in the correct positions
 	if len(clean) == 32 {
 		return clean[:8] + "-" + clean[8:12] + "-" + clean[12:16] + "-" + clean[16:20] + "-" + clean[20:]
 	}
-	
+
 	return uuid // Return original if not 32 characters
 }
 

@@ -39,7 +39,7 @@ func NewBackupManager(backupRoot string) *BackupManager {
 func (bm *BackupManager) CreateBackup(operation, description string, files []string) (*BackupMetadata, error) {
 	// Generate backup ID
 	backupID := generateBackupID()
-	
+
 	// Create backup directory
 	backupDir := filepath.Join(bm.BackupRoot, backupID)
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
@@ -160,7 +160,7 @@ func (bm *BackupManager) backupFile(source, backupDir string) error {
 	if sourceInfo.IsDir() {
 		return copyDir(source, backupPath)
 	}
-	
+
 	return copyFile(source, backupPath)
 }
 
@@ -168,7 +168,7 @@ func (bm *BackupManager) backupFile(source, backupDir string) error {
 func (bm *BackupManager) restoreFile(originalPath, backupDir string) error {
 	basename := filepath.Base(originalPath)
 	backupPath := filepath.Join(backupDir, basename)
-	
+
 	// Check if this was a missing file
 	markerFile := backupPath + ".missing"
 	if _, err := os.Stat(markerFile); err == nil {
@@ -194,14 +194,14 @@ func (bm *BackupManager) restoreFile(originalPath, backupDir string) error {
 		}
 		return copyDir(backupPath, originalPath)
 	}
-	
+
 	return copyFile(backupPath, originalPath)
 }
 
 // saveMetadata saves backup metadata to a JSON file
 func (bm *BackupManager) saveMetadata(metadata *BackupMetadata) error {
 	metadataFile := filepath.Join(bm.BackupRoot, fmt.Sprintf("%s.json", metadata.ID))
-	
+
 	data, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
@@ -213,7 +213,7 @@ func (bm *BackupManager) saveMetadata(metadata *BackupMetadata) error {
 // loadMetadata loads backup metadata from a JSON file
 func (bm *BackupManager) loadMetadata(backupID string) (*BackupMetadata, error) {
 	metadataFile := filepath.Join(bm.BackupRoot, fmt.Sprintf("%s.json", backupID))
-	
+
 	data, err := os.ReadFile(metadataFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read metadata file: %w", err)

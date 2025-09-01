@@ -9,8 +9,8 @@ import (
 
 // PackReference represents a pack reference in world config files
 type PackReference struct {
-	PackID  string  `json:"pack_id"`
-	Version [3]int  `json:"version"`
+	PackID  string `json:"pack_id"`
+	Version [3]int `json:"version"`
 }
 
 // WorldConfig represents the structure of world config files
@@ -19,11 +19,11 @@ type WorldConfig []PackReference
 // ServerPaths contains paths to important server directories and files
 type ServerPaths struct {
 	ServerRoot           string
-	WorldsDir           string
-	BehaviorPacksDir    string
-	ResourcePacksDir    string
-	WorldBehaviorPacks  string
-	WorldResourcePacks  string
+	WorldsDir            string
+	BehaviorPacksDir     string
+	ResourcePacksDir     string
+	WorldBehaviorPacks   string
+	WorldResourcePacks   string
 	WorldBehaviorHistory string
 	WorldResourceHistory string
 }
@@ -31,14 +31,14 @@ type ServerPaths struct {
 // NewServerPaths creates a ServerPaths struct with standard Bedrock server paths
 func NewServerPaths(serverRoot string) *ServerPaths {
 	worldsDir := filepath.Join(serverRoot, "worlds")
-	
+
 	return &ServerPaths{
 		ServerRoot:           serverRoot,
-		WorldsDir:           worldsDir,
-		BehaviorPacksDir:    filepath.Join(serverRoot, "behavior_packs"),
-		ResourcePacksDir:    filepath.Join(serverRoot, "resource_packs"),
-		WorldBehaviorPacks:  filepath.Join(worldsDir, "world_behavior_packs.json"),
-		WorldResourcePacks:  filepath.Join(worldsDir, "world_resource_packs.json"),
+		WorldsDir:            worldsDir,
+		BehaviorPacksDir:     filepath.Join(serverRoot, "behavior_packs"),
+		ResourcePacksDir:     filepath.Join(serverRoot, "resource_packs"),
+		WorldBehaviorPacks:   filepath.Join(worldsDir, "world_behavior_packs.json"),
+		WorldResourcePacks:   filepath.Join(worldsDir, "world_resource_packs.json"),
 		WorldBehaviorHistory: filepath.Join(worldsDir, "world_behavior_pack_history.json"),
 		WorldResourceHistory: filepath.Join(worldsDir, "world_resource_pack_history.json"),
 	}
@@ -111,7 +111,7 @@ func AddPackToConfig(config WorldConfig, packID string, version [3]int) WorldCon
 		PackID:  packID,
 		Version: version,
 	}
-	
+
 	return append(config, newPack)
 }
 

@@ -17,11 +17,11 @@ type InstallOptions struct {
 
 // InstallResult contains the result of an installation
 type InstallResult struct {
-	Success         bool
-	InstalledPacks  []string
-	BackupMetadata  *filesystem.BackupMetadata
-	Errors          []string
-	Warnings        []string
+	Success        bool
+	InstalledPacks []string
+	BackupMetadata *filesystem.BackupMetadata
+	Errors         []string
+	Warnings       []string
 }
 
 // Installer handles addon installation operations
@@ -42,8 +42,8 @@ func NewInstaller(server *minecraft.Server, backupDir string) *Installer {
 func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*InstallResult, error) {
 	result := &InstallResult{
 		InstalledPacks: make([]string, 0),
-		Errors:        make([]string, 0),
-		Warnings:      make([]string, 0),
+		Errors:         make([]string, 0),
+		Warnings:       make([]string, 0),
 	}
 
 	if options.Verbose {
@@ -116,14 +116,14 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		if options.Verbose {
 			fmt.Println("Installation failed, rolling back...")
 		}
-		
+
 		// Rollback on failure
 		if rollbackErr := i.backupManager.RestoreBackup(backup.ID); rollbackErr != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		} else if options.Verbose {
 			fmt.Println("Successfully rolled back changes")
 		}
-		
+
 		result.Errors = append(result.Errors, fmt.Sprintf("Installation failed: %v", err))
 		return result, err
 	}
@@ -133,12 +133,12 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		if options.Verbose {
 			fmt.Println("Post-installation validation failed, rolling back...")
 		}
-		
+
 		// Rollback on validation failure
 		if rollbackErr := i.backupManager.RestoreBackup(backup.ID); rollbackErr != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		}
-		
+
 		result.Errors = append(result.Errors, fmt.Sprintf("Post-installation validation failed: %v", err))
 		return result, err
 	}
@@ -205,7 +205,7 @@ func (i *Installer) checkForConflicts(addon *ExtractedAddon) ([]string, error) {
 	for _, newPack := range addon.GetAllPacks() {
 		for _, installedPack := range installedPacks {
 			if newPack.Manifest.Header.UUID == installedPack.PackID {
-				conflicts = append(conflicts, fmt.Sprintf("Pack %s (UUID: %s) is already installed", 
+				conflicts = append(conflicts, fmt.Sprintf("Pack %s (UUID: %s) is already installed",
 					installedPack.Name, installedPack.PackID))
 			}
 		}
@@ -217,12 +217,12 @@ func (i *Installer) checkForConflicts(addon *ExtractedAddon) ([]string, error) {
 // installPacks installs all packs in the addon
 func (i *Installer) installPacks(addon *ExtractedAddon, verbose bool) error {
 	allPacks := addon.GetAllPacks()
-	
+
 	for _, pack := range allPacks {
 		if verbose {
 			fmt.Printf("Installing %s pack: %s\n", pack.PackType, pack.Manifest.GetDisplayName())
 		}
-		
+
 		if err := i.server.InstallPack(pack.Manifest, pack.Path); err != nil {
 			return fmt.Errorf("failed to install pack %s: %w", pack.Manifest.GetDisplayName(), err)
 		}
@@ -246,7 +246,7 @@ func (i *Installer) postInstallValidation(addon *ExtractedAddon) error {
 
 	for _, pack := range addon.GetAllPacks() {
 		if !installedUUIDs[pack.Manifest.Header.UUID] {
-			return fmt.Errorf("pack %s was not found in installed packs after installation", 
+			return fmt.Errorf("pack %s was not found in installed packs after installation",
 				pack.Manifest.GetDisplayName())
 		}
 	}

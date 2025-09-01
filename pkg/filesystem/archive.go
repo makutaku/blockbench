@@ -101,11 +101,11 @@ func ValidateArchive(archivePath string) error {
 
 // GetArchiveInfo returns basic information about a ZIP archive
 type ArchiveInfo struct {
-	TotalFiles      int
-	TotalSize       int64
-	HasManifest     bool
-	ManifestFiles   []string
-	TopLevelDirs    []string
+	TotalFiles    int
+	TotalSize     int64
+	HasManifest   bool
+	ManifestFiles []string
+	TopLevelDirs  []string
 }
 
 // GetArchiveInfo analyzes a ZIP archive and returns information about it

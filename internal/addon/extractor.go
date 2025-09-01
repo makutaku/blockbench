@@ -12,16 +12,16 @@ import (
 
 // ExtractedAddon represents an extracted addon with its components
 type ExtractedAddon struct {
-	TempDir        string
-	BehaviorPacks  []*ExtractedPack
-	ResourcePacks  []*ExtractedPack
+	TempDir       string
+	BehaviorPacks []*ExtractedPack
+	ResourcePacks []*ExtractedPack
 }
 
 // ExtractedPack represents a single extracted pack
 type ExtractedPack struct {
-	Path      string
-	Manifest  *minecraft.Manifest
-	PackType  minecraft.PackType
+	Path     string
+	Manifest *minecraft.Manifest
+	PackType minecraft.PackType
 }
 
 // Cleanup removes the temporary directory

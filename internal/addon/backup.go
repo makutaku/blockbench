@@ -33,7 +33,7 @@ func (bm *BackupManager) CreateInstallBackup(addonName, addonUUID string) (*file
 	}
 
 	description := fmt.Sprintf("Before installing addon: %s", addonName)
-	
+
 	metadata, err := bm.CreateBackup("install", description, files)
 	if err != nil {
 		return nil, err
@@ -60,11 +60,11 @@ func (bm *BackupManager) CreateUninstallBackup(addonName, addonUUID string) (*fi
 	if err != nil {
 		return nil, fmt.Errorf("failed to find addon directories: %w", err)
 	}
-	
+
 	files = append(files, addonDirs...)
 
 	description := fmt.Sprintf("Before uninstalling addon: %s", addonName)
-	
+
 	metadata, err := bm.CreateBackup("uninstall", description, files)
 	if err != nil {
 		return nil, err

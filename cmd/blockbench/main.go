@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/makutaku/blockbench/internal/cli"
+	"github.com/makutaku/blockbench/internal/version"
+	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
@@ -14,7 +15,7 @@ var rootCmd = &cobra.Command{
 	Long: `Blockbench is a command-line tool for managing Minecraft Bedrock Edition addons on servers.
 It provides functionality to install, uninstall, and list addons with safety features like
 automatic backups, rollback on failures, and dry-run mode for testing.`,
-	Version: "0.1.0",
+	Version: version.GetVersionString(),
 }
 
 func init() {
@@ -25,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(cli.NewInstallCommand())
 	rootCmd.AddCommand(cli.NewUninstallCommand())
 	rootCmd.AddCommand(cli.NewListCommand())
+	rootCmd.AddCommand(cli.NewVersionCommand())
 }
 
 func main() {

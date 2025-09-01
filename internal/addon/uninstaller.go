@@ -65,7 +65,7 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 	}
 
 	if options.Verbose {
-		fmt.Printf("Found pack: %s (UUID: %s, Type: %s)\n", 
+		fmt.Printf("Found pack: %s (UUID: %s, Type: %s)\n",
 			packToRemove.Name, packToRemove.PackID, packToRemove.Type)
 	}
 
@@ -87,7 +87,7 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 
 	if len(dependents) > 0 {
 		for _, dependent := range dependents {
-			result.Warnings = append(result.Warnings, 
+			result.Warnings = append(result.Warnings,
 				fmt.Sprintf("Pack %s depends on the pack being removed", dependent))
 		}
 		// For now, we'll allow removal but warn the user
@@ -110,14 +110,14 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 		if options.Verbose {
 			fmt.Println("Uninstallation failed, rolling back...")
 		}
-		
+
 		// Rollback on failure
 		if rollbackErr := u.backupManager.RestoreBackup(backup.ID); rollbackErr != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		} else if options.Verbose {
 			fmt.Println("Successfully rolled back changes")
 		}
-		
+
 		result.Errors = append(result.Errors, fmt.Sprintf("Uninstallation failed: %v", err))
 		return result, err
 	}
@@ -127,12 +127,12 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 		if options.Verbose {
 			fmt.Println("Post-uninstallation validation failed, rolling back...")
 		}
-		
+
 		// Rollback on validation failure
 		if rollbackErr := u.backupManager.RestoreBackup(backup.ID); rollbackErr != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("Rollback failed: %v", rollbackErr))
 		}
-		
+
 		result.Errors = append(result.Errors, fmt.Sprintf("Post-uninstallation validation failed: %v", err))
 		return result, err
 	}
@@ -225,7 +225,7 @@ func (u *Uninstaller) checkDependencies(packID string) ([]string, error) {
 // loadPackManifest loads a manifest for an installed pack
 func (u *Uninstaller) loadPackManifest(packID string, packType minecraft.PackType) (*minecraft.Manifest, error) {
 	var baseDir string
-	
+
 	switch packType {
 	case minecraft.PackTypeBehavior:
 		baseDir = u.server.Paths.BehaviorPacksDir
@@ -249,13 +249,13 @@ func (u *Uninstaller) findAndLoadManifest(baseDir, packID string) (*minecraft.Ma
 		if !entry.IsDir() {
 			continue
 		}
-		
+
 		manifestPath := filepath.Join(baseDir, entry.Name(), "manifest.json")
 		manifest, err := minecraft.ParseManifest(manifestPath)
 		if err != nil {
 			continue // Skip if can't read manifest
 		}
-		
+
 		if manifest.Header.UUID == packID {
 			return manifest, nil
 		}

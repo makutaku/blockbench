@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/makutaku/blockbench/internal/addon"
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/spf13/cobra"
 )
 
 func NewInstallCommand() *cobra.Command {
@@ -28,7 +28,7 @@ The addon will be extracted, validated, and installed with automatic backup crea
 func runInstall(cmd *cobra.Command, args []string) error {
 	addonFile := args[0]
 	serverPath := args[1]
-	
+
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	force, _ := cmd.Flags().GetBool("force")
@@ -58,7 +58,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	// Perform installation
 	result, err := installer.InstallAddon(addonFile, options)
-	
+
 	// Display results
 	if len(result.Warnings) > 0 {
 		fmt.Println("Warnings:")
