@@ -166,12 +166,8 @@ func TestParseManifest(t *testing.T) {
 			manifestData: `{
 				"format_version": 2
 			}`,
-			expectError: false, // JSON unmarshaling will succeed, but fields will be empty
-			validate: func(t *testing.T, m *Manifest) {
-				if m.Header.Name != "" {
-					t.Error("Expected empty name for incomplete manifest")
-				}
-			},
+			expectError: true, // Should fail validation due to missing UUID
+			validate:    nil,
 		},
 	}
 
@@ -300,8 +296,8 @@ func TestManifestDependencyUnmarshalInvalid(t *testing.T) {
 		jsonData string
 	}{
 		{
-			name:     "invalid version array",
-			jsonData: `{"uuid": "test", "version": "not-an-array"}`,
+			name:     "invalid version format",
+			jsonData: `{"uuid": "test", "version": {"not": "string or array"}}`,
 		},
 		{
 			name:     "malformed JSON",

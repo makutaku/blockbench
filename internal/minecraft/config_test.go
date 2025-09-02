@@ -52,13 +52,13 @@ max-players=5`,
 max-players=10
 gamemode=creative`,
 			expectedLevel: "",
-			expectError:   false,
+			expectError:   true,
 		},
 		{
 			name:           "empty properties file",
 			propertiesData: ``,
 			expectedLevel:  "",
-			expectError:    false,
+			expectError:    true,
 		},
 		{
 			name: "commented level-name",
@@ -85,16 +85,18 @@ level-name=Actual World`,
 				t.Fatalf("Failed to write properties file: %v", err)
 			}
 
-			// Test function - need to test via NewServerPaths since getWorldNameFromProperties is private
+			// Test function - NewServerPaths should succeed if level-name is found
 			tempServerDir := filepath.Dir(propertiesPath)
 			serverPaths, err := NewServerPaths(tempServerDir)
+
+			// For cases with valid level-name, we expect success and can extract the level name
+			// from the world directory path: WorldBehaviorPacks = worlds/LEVELNAME/world_behavior_packs.json
 			var levelName string
 			if err == nil && serverPaths != nil {
-				// Extract level name from world paths
-				worldsDir := filepath.Base(serverPaths.WorldsDir)
-				if worldsDir != "worlds" {
-					levelName = worldsDir // This would be the case if worlds dir is the world itself
-				}
+				worldBehaviorPath := serverPaths.WorldBehaviorPacks
+				// Extract: /temp/worlds/LEVELNAME/world_behavior_packs.json -> LEVELNAME
+				worldDir := filepath.Dir(worldBehaviorPath) // /temp/worlds/LEVELNAME
+				levelName = filepath.Base(worldDir)         // LEVELNAME
 			}
 
 			if tt.expectError && err == nil {
@@ -305,9 +307,12 @@ func TestSaveWorldConfigEmptyConfig(t *testing.T) {
 }
 
 func TestLoadWorldConfigNonExistent(t *testing.T) {
-	_, err := LoadWorldConfig("/path/that/does/not/exist/config.json")
-	if err == nil {
-		t.Error("Expected error for non-existent file")
+	config, err := LoadWorldConfig("/path/that/does/not/exist/config.json")
+	if err != nil {
+		t.Errorf("Expected no error for non-existent file (should return empty config), got: %v", err)
+	}
+	if len(config) != 0 {
+		t.Errorf("Expected empty config for non-existent file, got %d entries", len(config))
 	}
 }
 

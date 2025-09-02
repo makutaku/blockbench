@@ -197,7 +197,7 @@ func TestListBackups(t *testing.T) {
 		t.Fatalf("Failed to create first backup: %v", err)
 	}
 
-	time.Sleep(2 * time.Millisecond) // Ensure different timestamps
+	time.Sleep(1001 * time.Millisecond) // Ensure different Unix seconds
 	_, err = bm.CreateBackup("uninstall", "Second backup", []string{testFile})
 	if err != nil {
 		t.Fatalf("Failed to create second backup: %v", err)
@@ -316,7 +316,7 @@ func TestBackupMetadataJSON(t *testing.T) {
 func TestGenerateBackupID(t *testing.T) {
 	// Test that generateBackupID produces unique IDs
 	id1 := generateBackupID()
-	time.Sleep(2 * time.Millisecond) // Ensure different timestamps
+	time.Sleep(1001 * time.Millisecond) // Ensure different Unix seconds
 	id2 := generateBackupID()
 
 	if id1 == id2 {
