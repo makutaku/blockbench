@@ -90,11 +90,13 @@ test-coverage:
 .PHONY: lint
 lint:
 	@echo "Running linter..."
-	@command -v golangci-lint >/dev/null 2>&1 || { \
+	@GOPATH=$$(go env GOPATH); \
+	if [ ! -f "$$GOPATH/bin/golangci-lint" ]; then \
 		echo "golangci-lint not found. Installing..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
-	}
-	golangci-lint run
+	fi
+	@GOPATH=$$(go env GOPATH); \
+	$$GOPATH/bin/golangci-lint run
 
 # Format the code
 .PHONY: fmt
