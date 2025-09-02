@@ -101,11 +101,13 @@ func ValidateArchive(archivePath string) error {
 
 // GetArchiveInfo returns basic information about a ZIP archive
 type ArchiveInfo struct {
-	TotalFiles    int
-	TotalSize     int64
-	HasManifest   bool
-	ManifestFiles []string
-	TopLevelDirs  []string
+	TotalFiles     int
+	TotalSize      int64
+	HasManifest    bool
+	ManifestFiles  []string
+	TopLevelDirs   []string
+	HasMcpackFiles bool
+	McpackFiles    []string
 }
 
 // GetArchiveInfo analyzes a ZIP archive and returns information about it
@@ -119,6 +121,7 @@ func GetArchiveInfo(archivePath string) (*ArchiveInfo, error) {
 	info := &ArchiveInfo{
 		ManifestFiles: make([]string, 0),
 		TopLevelDirs:  make([]string, 0),
+		McpackFiles:   make([]string, 0),
 	}
 
 	topDirs := make(map[string]bool)
@@ -131,6 +134,12 @@ func GetArchiveInfo(archivePath string) (*ArchiveInfo, error) {
 		if strings.HasSuffix(strings.ToLower(file.Name), "manifest.json") {
 			info.HasManifest = true
 			info.ManifestFiles = append(info.ManifestFiles, file.Name)
+		}
+
+		// Check for .mcpack files
+		if strings.HasSuffix(strings.ToLower(file.Name), ".mcpack") {
+			info.HasMcpackFiles = true
+			info.McpackFiles = append(info.McpackFiles, file.Name)
 		}
 
 		// Track top-level directories

@@ -1,7 +1,11 @@
 package addon
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/makutaku/blockbench/internal/minecraft"
 	"github.com/makutaku/blockbench/pkg/filesystem"
@@ -13,6 +17,7 @@ type InstallOptions struct {
 	Verbose     bool
 	BackupDir   string
 	ForceUpdate bool
+	Interactive bool
 }
 
 // InstallResult contains the result of an installation
@@ -56,25 +61,74 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		return result, err
 	}
 
-	if options.DryRun {
-		if options.Verbose {
-			fmt.Println("DRY RUN: Validation passed, installation would proceed")
-		}
-		result.Success = true
-		return result, nil
+	// Show validation results
+	validationDetails := []string{
+		fmt.Sprintf("Validated addon file: %s", addonPath),
+		fmt.Sprintf("Server directory structure verified: %s", i.server.Paths.ServerRoot),
+		"Archive format and integrity confirmed",
+	}
+	if err := showStepResult("Pre-installation validation", validationDetails, "Archive extraction", "Extract the .mcaddon/.mcpack file and any nested .mcpack files to a temporary directory for processing.", options); err != nil {
+		return result, err
 	}
 
+	// Continue with full analysis even in dry-run mode to provide detailed information
+
 	// Step 2: Extract addon
-	extractedAddon, err := ExtractAddon(addonPath, false)
+	extractedAddon, err := ExtractAddon(addonPath, options.DryRun)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Extraction failed: %v", err))
 		return result, err
 	}
 	defer extractedAddon.Cleanup()
 
+	// Show extraction results with pack details
+	extractionDetails := []string{
+		fmt.Sprintf("Extracted to temporary directory: %s", extractedAddon.TempDir),
+	}
+
+	// Add behavior pack details
+	if len(extractedAddon.BehaviorPacks) > 0 {
+		extractionDetails = append(extractionDetails, fmt.Sprintf("Found %d behavior pack(s):", len(extractedAddon.BehaviorPacks)))
+		for _, pack := range extractedAddon.BehaviorPacks {
+			extractionDetails = append(extractionDetails, fmt.Sprintf("  • %s (UUID: %s, Version: %d.%d.%d) at %s",
+				pack.Manifest.GetDisplayName(),
+				pack.Manifest.Header.UUID,
+				pack.Manifest.Header.Version[0], pack.Manifest.Header.Version[1], pack.Manifest.Header.Version[2],
+				pack.Path))
+		}
+	}
+
+	// Add resource pack details
+	if len(extractedAddon.ResourcePacks) > 0 {
+		extractionDetails = append(extractionDetails, fmt.Sprintf("Found %d resource pack(s):", len(extractedAddon.ResourcePacks)))
+		for _, pack := range extractedAddon.ResourcePacks {
+			extractionDetails = append(extractionDetails, fmt.Sprintf("  • %s (UUID: %s, Version: %d.%d.%d) at %s",
+				pack.Manifest.GetDisplayName(),
+				pack.Manifest.Header.UUID,
+				pack.Manifest.Header.Version[0], pack.Manifest.Header.Version[1], pack.Manifest.Header.Version[2],
+				pack.Path))
+		}
+	}
+	if err := showStepResult("Archive extraction", extractionDetails, "Content validation", "Analyze extracted pack contents, validate manifest.json files, and determine pack types (behavior/resource).", options); err != nil {
+		return result, err
+	}
+
 	// Step 3: Validate extracted content
 	if err := i.validateExtractedAddon(extractedAddon); err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Content validation failed: %v", err))
+		return result, err
+	}
+
+	// Show content validation results
+	contentValidationDetails := []string{}
+	for _, pack := range extractedAddon.BehaviorPacks {
+		contentValidationDetails = append(contentValidationDetails, fmt.Sprintf("Validated behavior pack: %s", pack.Manifest.GetDisplayName()))
+	}
+	for _, pack := range extractedAddon.ResourcePacks {
+		contentValidationDetails = append(contentValidationDetails, fmt.Sprintf("Validated resource pack: %s", pack.Manifest.GetDisplayName()))
+	}
+	contentValidationDetails = append(contentValidationDetails, "All manifest.json files are valid")
+	if err := showStepResult("Content validation", contentValidationDetails, "Conflict detection", "Check for UUID conflicts with existing installed packs that could cause issues.", options); err != nil {
 		return result, err
 	}
 
@@ -85,11 +139,30 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		return result, err
 	}
 
+	// Show conflict check results
+	conflictDetails := []string{}
+	if len(conflicts) == 0 {
+		conflictDetails = append(conflictDetails, "No UUID conflicts detected")
+	} else {
+		for _, conflict := range conflicts {
+			conflictDetails = append(conflictDetails, fmt.Sprintf("Conflict found: %s", conflict))
+		}
+	}
+	conflictDetails = append(conflictDetails, fmt.Sprintf("Checked against %d existing pack(s)", len(conflicts)))
+	if err := showStepResult("Conflict detection", conflictDetails, "Backup creation", "Create a backup of the current server state to enable rollback if the installation fails.", options); err != nil {
+		return result, err
+	}
+
 	if len(conflicts) > 0 && !options.ForceUpdate {
 		for _, conflict := range conflicts {
 			result.Warnings = append(result.Warnings, fmt.Sprintf("Conflict detected: %s", conflict))
 		}
 		return result, fmt.Errorf("conflicts detected, use --force to override")
+	}
+
+	// For dry-run, simulate the installation operations and show detailed information
+	if options.DryRun {
+		return i.performDryRunSimulation(extractedAddon, conflicts, options)
 	}
 
 	// Step 5: Create backup
@@ -111,6 +184,23 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 	}
 	result.BackupMetadata = backup
 
+	// Show backup creation results
+	backupDetails := []string{
+		fmt.Sprintf("Backup created with ID: %s", backup.ID),
+		fmt.Sprintf("Backup stored at: %s", backup.BackupPath),
+	}
+	if len(backup.Files) > 0 {
+		backupDetails = append(backupDetails, fmt.Sprintf("Backed up %d file(s):", len(backup.Files)))
+		for _, file := range backup.Files {
+			backupDetails = append(backupDetails, fmt.Sprintf("  • %s", file))
+		}
+	} else {
+		backupDetails = append(backupDetails, "No existing files to backup (fresh installation)")
+	}
+	if err := showStepResult("Backup creation", backupDetails, "Pack installation", "Copy pack files to server directories and update world configuration files to register the new packs.", options); err != nil {
+		return result, err
+	}
+
 	// Step 6: Install packs (with rollback on failure)
 	if err := i.installPacks(extractedAddon, options.Verbose); err != nil {
 		if options.Verbose {
@@ -128,6 +218,32 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		return result, err
 	}
 
+	// Show pack installation results with specific paths
+	installDetails := []string{}
+	for _, pack := range extractedAddon.BehaviorPacks {
+		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), pack.Manifest.Header.UUID[:8])
+		finalPackDir := filepath.Join(i.server.Paths.BehaviorPacksDir, packDirName)
+		installDetails = append(installDetails, fmt.Sprintf("Created behavior pack directory: %s", finalPackDir))
+		installDetails = append(installDetails, fmt.Sprintf("Updated world config file: %s", i.server.Paths.WorldBehaviorPacks))
+		installDetails = append(installDetails, fmt.Sprintf("  • Added pack: %s (UUID: %s, Version: %d.%d.%d)",
+			pack.Manifest.GetDisplayName(),
+			pack.Manifest.Header.UUID,
+			pack.Manifest.Header.Version[0], pack.Manifest.Header.Version[1], pack.Manifest.Header.Version[2]))
+	}
+	for _, pack := range extractedAddon.ResourcePacks {
+		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), pack.Manifest.Header.UUID[:8])
+		finalPackDir := filepath.Join(i.server.Paths.ResourcePacksDir, packDirName)
+		installDetails = append(installDetails, fmt.Sprintf("Created resource pack directory: %s", finalPackDir))
+		installDetails = append(installDetails, fmt.Sprintf("Updated world config file: %s", i.server.Paths.WorldResourcePacks))
+		installDetails = append(installDetails, fmt.Sprintf("  • Added pack: %s (UUID: %s, Version: %d.%d.%d)",
+			pack.Manifest.GetDisplayName(),
+			pack.Manifest.Header.UUID,
+			pack.Manifest.Header.Version[0], pack.Manifest.Header.Version[1], pack.Manifest.Header.Version[2]))
+	}
+	if err := showStepResult("Pack installation", installDetails, "Post-installation validation", "Verify that all packs were successfully installed and are properly registered with the server.", options); err != nil {
+		return result, err
+	}
+
 	// Step 7: Post-installation validation
 	if err := i.postInstallValidation(extractedAddon); err != nil {
 		if options.Verbose {
@@ -140,6 +256,17 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		}
 
 		result.Errors = append(result.Errors, fmt.Sprintf("Post-installation validation failed: %v", err))
+		return result, err
+	}
+
+	// Show post-installation validation results
+	finalValidationDetails := []string{}
+	finalAllPacks := extractedAddon.GetAllPacks()
+	for _, pack := range finalAllPacks {
+		finalValidationDetails = append(finalValidationDetails, fmt.Sprintf("Verified pack installation: %s", pack.Manifest.GetDisplayName()))
+	}
+	finalValidationDetails = append(finalValidationDetails, "All packs are properly registered with the server")
+	if err := showStepResult("Post-installation validation", finalValidationDetails, "", "", options); err != nil {
 		return result, err
 	}
 
@@ -252,4 +379,135 @@ func (i *Installer) postInstallValidation(addon *ExtractedAddon) error {
 	}
 
 	return nil
+}
+
+// showStepResult displays the results of a completed step and asks about next step
+func showStepResult(stepName string, details []string, nextStep, nextStepDesc string, options InstallOptions) error {
+	if !options.Interactive {
+		return nil
+	}
+
+	fmt.Printf("\n✅ Completed: %s\n", stepName)
+	for _, detail := range details {
+		fmt.Printf("   • %s\n", detail)
+	}
+
+	if nextStep != "" {
+		fmt.Printf("\n📋 Next Step: %s\n", nextStep)
+		fmt.Printf("   %s\n", nextStepDesc)
+		fmt.Print("Proceed with this step? (y/N): ")
+	} else {
+		fmt.Print("\nFinish installation? (y/N): ")
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		// Handle EOF (when input is piped or redirected)
+		if strings.Contains(err.Error(), "EOF") {
+			fmt.Println("n")
+			return fmt.Errorf("installation aborted due to end of input")
+		}
+		return fmt.Errorf("failed to read user input: %w", err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "y" && response != "yes" {
+		return fmt.Errorf("installation aborted by user")
+	}
+
+	return nil
+}
+
+// performDryRunSimulation simulates installation operations and shows detailed information
+func (i *Installer) performDryRunSimulation(extractedAddon *ExtractedAddon, conflicts []string, options InstallOptions) (*InstallResult, error) {
+	result := &InstallResult{
+		InstalledPacks: make([]string, 0),
+		Errors:         make([]string, 0),
+		Warnings:       make([]string, 0),
+	}
+
+	// Add conflict warnings
+	for _, conflict := range conflicts {
+		result.Warnings = append(result.Warnings, fmt.Sprintf("Conflict detected: %s", conflict))
+	}
+
+	simulator := NewDryRunSimulator(i.server)
+	allPacks := extractedAddon.GetAllPacks()
+
+	if options.Verbose {
+		fmt.Println("DRY RUN: Simulating installation operations...")
+	}
+
+	// Simulate backup creation
+	backupDetails := []string{
+		"DRY RUN: Backup would be created with timestamp-based ID",
+		fmt.Sprintf("DRY RUN: Backup would be stored in: %s/backups/", i.server.Paths.ServerRoot),
+	}
+	if len(conflicts) > 0 && options.ForceUpdate {
+		backupDetails = append(backupDetails, "DRY RUN: Would backup existing conflicting packs")
+	} else {
+		backupDetails = append(backupDetails, "DRY RUN: No existing files to backup (fresh installation)")
+	}
+	if err := showStepResult("Backup simulation", backupDetails, "Installation simulation", "Simulate copying pack files and updating world configuration files.", options); err != nil {
+		return result, err
+	}
+
+	// Simulate installation for each pack
+	var installationDetails []string
+	for _, pack := range allPacks {
+		simulation, err := simulator.SimulatePackInstallation(pack)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("Installation simulation failed for pack %s: %v", pack.Manifest.GetDisplayName(), err))
+			continue
+		}
+
+		packTypeStr := "behavior"
+		if simulation.PackType == minecraft.PackTypeResource {
+			packTypeStr = "resource"
+		}
+
+		installationDetails = append(installationDetails, fmt.Sprintf("DRY RUN: Would create %s pack directory: %s", packTypeStr, simulation.TargetDirectory))
+		installationDetails = append(installationDetails, fmt.Sprintf("DRY RUN: Would update config file: %s", simulation.ConfigFile))
+		installationDetails = append(installationDetails, fmt.Sprintf("  • Would add pack entry: %s (UUID: %s, Version: %d.%d.%d)",
+			simulation.PackName, simulation.PackUUID,
+			simulation.PackVersion[0], simulation.PackVersion[1], simulation.PackVersion[2]))
+
+		if len(simulation.Dependencies) > 0 {
+			installationDetails = append(installationDetails, fmt.Sprintf("  • Pack has %d dependencies:", len(simulation.Dependencies)))
+			for _, dep := range simulation.Dependencies {
+				if dep.UUID != "" {
+					installationDetails = append(installationDetails, fmt.Sprintf("    - UUID: %s", dep.UUID))
+				}
+				if dep.ModuleName != "" {
+					installationDetails = append(installationDetails, fmt.Sprintf("    - Module: %s@%s", dep.ModuleName, dep.ModuleVersion))
+				}
+			}
+		}
+
+		result.InstalledPacks = append(result.InstalledPacks, simulation.PackName)
+	}
+
+	if err := showStepResult("Installation simulation", installationDetails, "Validation simulation", "Simulate post-installation validation to ensure all packs would be properly registered.", options); err != nil {
+		return result, err
+	}
+
+	// Simulate post-installation validation
+	validationDetails := []string{}
+	for _, pack := range allPacks {
+		validationDetails = append(validationDetails, fmt.Sprintf("DRY RUN: Would verify pack installation: %s", pack.Manifest.GetDisplayName()))
+	}
+	validationDetails = append(validationDetails, "DRY RUN: All packs would be properly registered with the server")
+	if err := showStepResult("Validation simulation", validationDetails, "", "", options); err != nil {
+		return result, err
+	}
+
+	// Summary
+	result.Success = true
+	if options.Verbose {
+		fmt.Printf("DRY RUN COMPLETE: Would install %d pack(s) successfully\n", len(result.InstalledPacks))
+		fmt.Println("No actual changes were made to the server")
+	}
+
+	return result, nil
 }

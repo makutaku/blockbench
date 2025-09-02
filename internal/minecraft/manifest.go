@@ -24,10 +24,56 @@ type ManifestModule struct {
 	Description string `json:"description,omitempty"`
 }
 
-// ManifestDependency represents a dependency on another pack
+// ManifestDependency represents a dependency on another pack or module
 type ManifestDependency struct {
-	UUID    string `json:"uuid"`
-	Version [3]int `json:"version"`
+	// Pack dependency format
+	UUID    string `json:"uuid,omitempty"`
+	Version [3]int `json:"-"` // Custom handling due to version field conflict
+
+	// Module dependency format
+	ModuleName    string `json:"module_name,omitempty"`
+	ModuleVersion string `json:"-"` // Custom handling due to version field conflict
+
+	// Raw version field for custom parsing
+	RawVersion json.RawMessage `json:"version,omitempty"`
+}
+
+// UnmarshalJSON custom unmarshaling to handle both pack and module dependency formats
+func (md *ManifestDependency) UnmarshalJSON(data []byte) error {
+	// Define a temporary struct that matches the JSON structure
+	type TempDependency struct {
+		UUID       string          `json:"uuid,omitempty"`
+		ModuleName string          `json:"module_name,omitempty"`
+		RawVersion json.RawMessage `json:"version,omitempty"`
+	}
+
+	var temp TempDependency
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	md.UUID = temp.UUID
+	md.ModuleName = temp.ModuleName
+	md.RawVersion = temp.RawVersion
+
+	// Parse version based on format
+	if len(temp.RawVersion) > 0 {
+		// Try to parse as array first (pack dependency format)
+		var versionArray [3]int
+		if err := json.Unmarshal(temp.RawVersion, &versionArray); err == nil {
+			md.Version = versionArray
+		} else {
+			// Parse as string (module dependency format)
+			var versionString string
+			if err := json.Unmarshal(temp.RawVersion, &versionString); err == nil {
+				md.ModuleVersion = versionString
+			} else {
+				return fmt.Errorf("failed to parse version field: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Manifest represents a complete manifest.json file

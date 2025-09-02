@@ -32,8 +32,9 @@ build:
 .PHONY: build-dev
 build-dev:
 	@echo "Building $(BINARY_NAME) for development..."
-	go build -o $(BINARY_NAME) $(MAIN_PACKAGE)
-	@echo "Development build complete: ./$(BINARY_NAME)"
+	@mkdir -p $(BUILD_DIR)
+	go build -o $(BUILD_DIR)/$(BINARY_NAME) $(MAIN_PACKAGE)
+	@echo "Development build complete: $(BUILD_DIR)/$(BINARY_NAME)"
 
 # Install to GOPATH/bin
 .PHONY: install

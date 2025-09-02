@@ -15,6 +15,7 @@ type ExtractedAddon struct {
 	TempDir       string
 	BehaviorPacks []*ExtractedPack
 	ResourcePacks []*ExtractedPack
+	IsDryRun      bool
 }
 
 // ExtractedPack represents a single extracted pack
@@ -59,18 +60,11 @@ func ExtractAddon(addonPath string, dryRun bool) (*ExtractedAddon, error) {
 		return nil, fmt.Errorf("failed to analyze archive: %w", err)
 	}
 
-	if !archiveInfo.HasManifest {
-		return nil, fmt.Errorf("archive does not contain any manifest.json files")
+	if !archiveInfo.HasManifest && !archiveInfo.HasMcpackFiles {
+		return nil, fmt.Errorf("archive does not contain any manifest.json files or .mcpack files")
 	}
 
-	if dryRun {
-		// For dry run, just analyze without extracting
-		return &ExtractedAddon{
-			TempDir: "(dry-run)",
-		}, nil
-	}
-
-	// Create temporary directory
+	// Create temporary directory (even for dry-run to perform real analysis)
 	tempDir, err := os.MkdirTemp("", "blockbench_extract_*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
@@ -82,6 +76,14 @@ func ExtractAddon(addonPath string, dryRun bool) (*ExtractedAddon, error) {
 		return nil, fmt.Errorf("failed to extract archive: %w", err)
 	}
 
+	// Check if we need to extract nested .mcpack files (only for .mcaddon files)
+	if ext == ".mcaddon" {
+		if err := extractNestedMcpacks(tempDir); err != nil {
+			os.RemoveAll(tempDir)
+			return nil, fmt.Errorf("failed to extract nested mcpack files: %w", err)
+		}
+	}
+
 	// Analyze extracted contents
 	addon, err := analyzeExtractedAddon(tempDir)
 	if err != nil {
@@ -90,6 +92,7 @@ func ExtractAddon(addonPath string, dryRun bool) (*ExtractedAddon, error) {
 	}
 
 	addon.TempDir = tempDir
+	addon.IsDryRun = dryRun
 	return addon, nil
 }
 
@@ -199,8 +202,8 @@ func ValidateAddonFile(addonPath string) error {
 		return fmt.Errorf("failed to analyze archive: %w", err)
 	}
 
-	if !info.HasManifest {
-		return fmt.Errorf("archive does not contain any manifest.json files")
+	if !info.HasManifest && !info.HasMcpackFiles {
+		return fmt.Errorf("archive does not contain any manifest.json files or .mcpack files")
 	}
 
 	if info.TotalFiles == 0 {
@@ -208,4 +211,50 @@ func ValidateAddonFile(addonPath string) error {
 	}
 
 	return nil
+}
+
+// extractNestedMcpacks extracts any .mcpack files found in the directory
+func extractNestedMcpacks(rootDir string) error {
+	mcpackFiles, err := findMcpackFiles(rootDir)
+	if err != nil {
+		return fmt.Errorf("failed to find mcpack files: %w", err)
+	}
+
+	for _, mcpackPath := range mcpackFiles {
+		// Get the filename without extension for the subdirectory name
+		filename := filepath.Base(mcpackPath)
+		dirName := strings.TrimSuffix(filename, filepath.Ext(filename))
+		extractDir := filepath.Join(filepath.Dir(mcpackPath), dirName)
+
+		// Extract the .mcpack file
+		if err := filesystem.ExtractArchive(mcpackPath, extractDir); err != nil {
+			return fmt.Errorf("failed to extract mcpack %s: %w", mcpackPath, err)
+		}
+
+		// Remove the original .mcpack file to avoid confusion
+		if err := os.Remove(mcpackPath); err != nil {
+			return fmt.Errorf("failed to remove original mcpack file %s: %w", mcpackPath, err)
+		}
+	}
+
+	return nil
+}
+
+// findMcpackFiles recursively finds all .mcpack files in a directory
+func findMcpackFiles(rootDir string) ([]string, error) {
+	var mcpackFiles []string
+
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && strings.HasSuffix(strings.ToLower(info.Name()), ".mcpack") {
+			mcpackFiles = append(mcpackFiles, path)
+		}
+
+		return nil
+	})
+
+	return mcpackFiles, err
 }

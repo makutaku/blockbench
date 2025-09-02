@@ -1,10 +1,12 @@
 package minecraft
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // PackReference represents a pack reference in world config files
@@ -29,19 +31,63 @@ type ServerPaths struct {
 }
 
 // NewServerPaths creates a ServerPaths struct with standard Bedrock server paths
-func NewServerPaths(serverRoot string) *ServerPaths {
+func NewServerPaths(serverRoot string) (*ServerPaths, error) {
 	worldsDir := filepath.Join(serverRoot, "worlds")
+
+	// Get world name from server.properties - no fallbacks
+	worldName, err := getWorldNameFromProperties(serverRoot)
+	if err != nil {
+		return nil, err
+	}
+	worldDir := filepath.Join(worldsDir, worldName)
 
 	return &ServerPaths{
 		ServerRoot:           serverRoot,
 		WorldsDir:            worldsDir,
-		BehaviorPacksDir:     filepath.Join(serverRoot, "behavior_packs"),
-		ResourcePacksDir:     filepath.Join(serverRoot, "resource_packs"),
-		WorldBehaviorPacks:   filepath.Join(worldsDir, "world_behavior_packs.json"),
-		WorldResourcePacks:   filepath.Join(worldsDir, "world_resource_packs.json"),
-		WorldBehaviorHistory: filepath.Join(worldsDir, "world_behavior_pack_history.json"),
-		WorldResourceHistory: filepath.Join(worldsDir, "world_resource_pack_history.json"),
+		BehaviorPacksDir:     filepath.Join(serverRoot, "development_behavior_packs"),
+		ResourcePacksDir:     filepath.Join(serverRoot, "development_resource_packs"),
+		WorldBehaviorPacks:   filepath.Join(worldDir, "world_behavior_packs.json"),
+		WorldResourcePacks:   filepath.Join(worldDir, "world_resource_packs.json"),
+		WorldBehaviorHistory: filepath.Join(worldDir, "world_behavior_pack_history.json"),
+		WorldResourceHistory: filepath.Join(worldDir, "world_resource_pack_history.json"),
+	}, nil
+}
+
+// getWorldNameFromProperties reads the world name from server.properties
+func getWorldNameFromProperties(serverRoot string) (string, error) {
+	propertiesPath := filepath.Join(serverRoot, "server.properties")
+
+	file, err := os.Open(propertiesPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot read server.properties at %s: %w", propertiesPath, err)
 	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments and empty lines
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+
+		// Look for level-name property
+		if strings.HasPrefix(line, "level-name=") {
+			worldName := strings.TrimPrefix(line, "level-name=")
+			worldName = strings.TrimSpace(worldName)
+			if worldName == "" {
+				return "", fmt.Errorf("level-name property is empty in %s", propertiesPath)
+			}
+			return worldName, nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading server.properties: %w", err)
+	}
+
+	return "", fmt.Errorf("level-name property not found in %s", propertiesPath)
 }
 
 // ValidateServerStructure checks if the server directory has the expected structure

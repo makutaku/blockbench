@@ -12,10 +12,11 @@ import (
 
 // UninstallOptions contains options for addon uninstallation
 type UninstallOptions struct {
-	DryRun    bool
-	Verbose   bool
-	BackupDir string
-	ByUUID    bool
+	DryRun      bool
+	Verbose     bool
+	BackupDir   string
+	ByUUID      bool
+	Interactive bool
 }
 
 // UninstallResult contains the result of an uninstallation
@@ -70,12 +71,7 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 	}
 
 	if options.DryRun {
-		if options.Verbose {
-			fmt.Println("DRY RUN: Pack found, uninstallation would proceed")
-		}
-		result.Success = true
-		result.RemovedPacks = append(result.RemovedPacks, packToRemove.Name)
-		return result, nil
+		return u.performDryRunSimulation(packToRemove, options)
 	}
 
 	// Step 2: Check for dependencies
@@ -286,4 +282,119 @@ func containsIgnoreCase(s, substr string) bool {
 	s = strings.ToLower(s)
 	substr = strings.ToLower(substr)
 	return strings.Contains(s, substr)
+}
+
+// performDryRunSimulation simulates uninstallation operations and shows detailed information
+func (u *Uninstaller) performDryRunSimulation(packToRemove *minecraft.InstalledPack, options UninstallOptions) (*UninstallResult, error) {
+	result := &UninstallResult{
+		RemovedPacks: make([]string, 0),
+		Errors:       make([]string, 0),
+		Warnings:     make([]string, 0),
+	}
+
+	simulator := NewDryRunSimulator(u.server)
+
+	if options.Verbose {
+		fmt.Println("DRY RUN: Simulating uninstallation operations...")
+	}
+
+	// Simulate dependency check
+	dependents, err := u.checkDependencies(packToRemove.PackID)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("Dependency check failed: %v", err))
+		return result, err
+	}
+
+	dependencyDetails := []string{
+		fmt.Sprintf("DRY RUN: Checked dependencies for pack: %s", packToRemove.Name),
+	}
+	if len(dependents) == 0 {
+		dependencyDetails = append(dependencyDetails, "DRY RUN: No dependent packs found - safe to remove")
+	} else {
+		dependencyDetails = append(dependencyDetails, fmt.Sprintf("DRY RUN: Found %d dependent pack(s):", len(dependents)))
+		for _, dependent := range dependents {
+			dependencyDetails = append(dependencyDetails, fmt.Sprintf("  • %s depends on this pack", dependent))
+			result.Warnings = append(result.Warnings, fmt.Sprintf("Pack %s depends on the pack being removed", dependent))
+		}
+		dependencyDetails = append(dependencyDetails, "DRY RUN: Would proceed with removal but warn about dependencies")
+	}
+
+	// Use the simulator to get detailed uninstallation information
+	simulation, err := simulator.SimulatePackUninstallation(packToRemove.PackID)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("Uninstallation simulation failed: %v", err))
+		return result, err
+	}
+
+	// Show dependency check results
+	if err := showStepResult("Dependency check simulation", dependencyDetails, "Backup simulation", "Simulate creating a backup of current state before removal.", convertToInstallOptions(options)); err != nil {
+		return result, err
+	}
+
+	// Simulate backup creation
+	backupDetails := []string{
+		"DRY RUN: Backup would be created with timestamp-based ID",
+		fmt.Sprintf("DRY RUN: Backup would be stored in: %s/backups/", u.server.Paths.ServerRoot),
+		fmt.Sprintf("DRY RUN: Would backup pack directory: %s", simulation.DirectoryToRemove),
+		fmt.Sprintf("DRY RUN: Would backup config file: %s", simulation.ConfigFile),
+	}
+	if err := showStepResult("Backup simulation", backupDetails, "Uninstallation simulation", "Simulate removing pack directory and updating world configuration files.", convertToInstallOptions(options)); err != nil {
+		return result, err
+	}
+
+	// Simulate uninstallation
+	packTypeStr := "behavior"
+	if simulation.PackType == minecraft.PackTypeResource {
+		packTypeStr = "resource"
+	}
+
+	uninstallationDetails := []string{
+		fmt.Sprintf("DRY RUN: Would remove %s pack directory: %s", packTypeStr, simulation.DirectoryToRemove),
+		fmt.Sprintf("DRY RUN: Would update config file: %s", simulation.ConfigFile),
+		fmt.Sprintf("  • Would remove pack entry: %s (UUID: %s)", simulation.PackName, simulation.PackUUID),
+	}
+
+	if len(simulation.DependentPacks) > 0 {
+		uninstallationDetails = append(uninstallationDetails, "DRY RUN: Dependent packs would be left with broken dependencies:")
+		for _, dependent := range simulation.DependentPacks {
+			uninstallationDetails = append(uninstallationDetails, fmt.Sprintf("  • %s", dependent))
+		}
+	}
+
+	if err := showStepResult("Uninstallation simulation", uninstallationDetails, "Validation simulation", "Simulate post-uninstallation validation to ensure pack is properly removed.", convertToInstallOptions(options)); err != nil {
+		return result, err
+	}
+
+	// Simulate post-uninstallation validation
+	validationDetails := []string{
+		fmt.Sprintf("DRY RUN: Would verify pack removal: %s", simulation.PackName),
+		"DRY RUN: Pack would no longer be registered with the server",
+		"DRY RUN: Pack directory would be completely removed",
+	}
+	if err := showStepResult("Validation simulation", validationDetails, "", "", convertToInstallOptions(options)); err != nil {
+		return result, err
+	}
+
+	// Summary
+	result.RemovedPacks = append(result.RemovedPacks, packToRemove.Name)
+	result.Success = true
+
+	if options.Verbose {
+		fmt.Printf("DRY RUN COMPLETE: Would uninstall pack '%s' successfully\n", packToRemove.Name)
+		if len(simulation.DependentPacks) > 0 {
+			fmt.Printf("WARNING: %d dependent pack(s) would be affected\n", len(simulation.DependentPacks))
+		}
+		fmt.Println("No actual changes were made to the server")
+	}
+
+	return result, nil
+}
+
+// convertToInstallOptions converts UninstallOptions to InstallOptions for showStepResult compatibility
+func convertToInstallOptions(uninstallOpts UninstallOptions) InstallOptions {
+	return InstallOptions{
+		Interactive: uninstallOpts.Interactive,
+		Verbose:     uninstallOpts.Verbose,
+		DryRun:      uninstallOpts.DryRun,
+	}
 }

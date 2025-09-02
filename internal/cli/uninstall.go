@@ -21,6 +21,7 @@ The addon will be safely removed with dependency checking and backup creation.`,
 
 	cmd.Flags().String("uuid", "", "Uninstall addon by UUID instead of name")
 	cmd.Flags().String("backup-dir", "", "Custom backup directory (default: server-path/backups)")
+	cmd.Flags().Bool("interactive", false, "Interactive mode - confirm each step before proceeding")
 
 	return cmd
 }
@@ -31,6 +32,7 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	verbose, _ := cmd.Flags().GetBool("verbose")
+	interactive, _ := cmd.Flags().GetBool("interactive")
 	uuid, _ := cmd.Flags().GetString("uuid")
 	backupDir, _ := cmd.Flags().GetString("backup-dir")
 
@@ -56,10 +58,11 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 
 	// Set up uninstall options
 	options := addon.UninstallOptions{
-		DryRun:    dryRun,
-		Verbose:   verbose,
-		BackupDir: backupDir,
-		ByUUID:    byUUID,
+		DryRun:      dryRun,
+		Verbose:     verbose,
+		BackupDir:   backupDir,
+		ByUUID:      byUUID,
+		Interactive: interactive,
 	}
 
 	// Perform uninstallation

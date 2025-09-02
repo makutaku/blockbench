@@ -13,7 +13,9 @@ func NewInstallCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install [addon-file] [server-path]",
 		Short: "Install a Minecraft Bedrock addon to a server",
-		Long: `Install a .mcaddon or .mcpack file to a Minecraft Bedrock server.
+		Long: `Install a Minecraft Bedrock addon to a server.
+
+Supports both .mcaddon files (containing multiple packs) and individual .mcpack files.
 The addon will be extracted, validated, and installed with automatic backup creation.`,
 		Args: cobra.ExactArgs(2),
 		RunE: runInstall,
@@ -21,6 +23,7 @@ The addon will be extracted, validated, and installed with automatic backup crea
 
 	cmd.Flags().Bool("force", false, "Force installation even if conflicts are detected")
 	cmd.Flags().String("backup-dir", "", "Custom backup directory (default: server-path/backups)")
+	cmd.Flags().Bool("interactive", false, "Interactive mode - confirm each step before proceeding")
 
 	return cmd
 }
@@ -32,6 +35,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	force, _ := cmd.Flags().GetBool("force")
+	interactive, _ := cmd.Flags().GetBool("interactive")
 	backupDir, _ := cmd.Flags().GetString("backup-dir")
 
 	// Set default backup directory
@@ -54,6 +58,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		Verbose:     verbose,
 		BackupDir:   backupDir,
 		ForceUpdate: force,
+		Interactive: interactive,
 	}
 
 	// Perform installation

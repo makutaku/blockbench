@@ -13,7 +13,10 @@ type Server struct {
 
 // NewServer creates a new Server instance
 func NewServer(serverRoot string) (*Server, error) {
-	paths := NewServerPaths(serverRoot)
+	paths, err := NewServerPaths(serverRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure server paths: %w", err)
+	}
 
 	if err := paths.ValidateServerStructure(); err != nil {
 		return nil, fmt.Errorf("invalid server structure: %w", err)
@@ -164,6 +167,54 @@ func (s *Server) ListInstalledPacks() ([]InstalledPack, error) {
 	return packs, nil
 }
 
+// ListInstalledPacksWithDependencies returns installed packs with their dependency information
+func (s *Server) ListInstalledPacksWithDependencies() ([]InstalledPackWithDependencies, error) {
+	packs, err := s.ListInstalledPacks()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list packs: %w", err)
+	}
+
+	var enrichedPacks []InstalledPackWithDependencies
+	for _, pack := range packs {
+		enriched := InstalledPackWithDependencies{
+			InstalledPack: pack,
+			Dependencies:  make([]string, 0),
+			Modules:       make([]string, 0),
+		}
+
+		// Try to load manifest for dependency information
+		if manifest, err := s.loadPackManifestByType(pack.PackID, pack.Type); err == nil {
+			for _, dep := range manifest.Dependencies {
+				if dep.UUID != "" {
+					enriched.Dependencies = append(enriched.Dependencies, dep.UUID)
+				}
+				if dep.ModuleName != "" {
+					enriched.Modules = append(enriched.Modules, dep.ModuleName)
+				}
+			}
+		}
+
+		enrichedPacks = append(enrichedPacks, enriched)
+	}
+
+	return enrichedPacks, nil
+}
+
+// loadPackManifestByType loads a pack manifest given its ID and type
+func (s *Server) loadPackManifestByType(packID string, packType PackType) (*Manifest, error) {
+	var baseDir string
+	switch packType {
+	case PackTypeBehavior:
+		baseDir = s.Paths.BehaviorPacksDir
+	case PackTypeResource:
+		baseDir = s.Paths.ResourcePacksDir
+	default:
+		return nil, fmt.Errorf("unknown pack type: %s", packType)
+	}
+
+	return s.loadPackManifest(baseDir, packID)
+}
+
 // InstalledPack represents an installed pack
 type InstalledPack struct {
 	PackID      string   `json:"pack_id"`
@@ -171,6 +222,13 @@ type InstalledPack struct {
 	Description string   `json:"description"`
 	Version     [3]int   `json:"version"`
 	Type        PackType `json:"type"`
+}
+
+// InstalledPackWithDependencies extends InstalledPack with dependency information
+type InstalledPackWithDependencies struct {
+	InstalledPack
+	Dependencies []string `json:"dependencies"` // Pack UUIDs this pack depends on
+	Modules      []string `json:"modules"`      // Script API modules used
 }
 
 // removePackDir removes a pack directory by searching for directories containing the pack ID
