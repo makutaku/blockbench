@@ -186,8 +186,8 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 				name, rel.Pack.Type, version, dependentCount, modules)
 		}
 		if err := w.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
-	}
+			fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+		}
 		fmt.Println()
 	}
 
@@ -214,8 +214,8 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 				name, rel.Pack.Type, version, dependencyCount, modules)
 		}
 		if err := w.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
-	}
+			fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+		}
 		fmt.Println()
 	}
 
@@ -241,8 +241,8 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 				name, rel.Pack.Type, version, modules)
 		}
 		if err := w.Flush(); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
-	}
+			fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+		}
 		fmt.Println()
 	}
 

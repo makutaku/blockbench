@@ -73,12 +73,12 @@ func extractFile(file *zip.File, destDir string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if we hit the limit (potential decompression bomb)
 	if written >= maxFileSize {
 		return fmt.Errorf("file too large after decompression: %s (exceeded 100MB limit)", file.Name)
 	}
-	
+
 	return nil
 }
 
