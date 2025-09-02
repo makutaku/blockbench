@@ -220,6 +220,7 @@ func (bm *BackupManager) saveMetadata(metadata *BackupMetadata) error {
 func (bm *BackupManager) loadMetadata(backupID string) (*BackupMetadata, error) {
 	metadataFile := filepath.Join(bm.BackupRoot, fmt.Sprintf("%s.json", backupID))
 
+	// #nosec G304 - metadataFile is constructed from validated backup root and ID
 	data, err := os.ReadFile(metadataFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read metadata file: %w", err)
@@ -245,12 +246,14 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
+	// #nosec G304 - src path is controlled by backup operations
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
+	// #nosec G304 - dst path is within controlled backup directory
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return err

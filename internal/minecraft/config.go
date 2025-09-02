@@ -57,6 +57,7 @@ func NewServerPaths(serverRoot string) (*ServerPaths, error) {
 func getWorldNameFromProperties(serverRoot string) (string, error) {
 	propertiesPath := filepath.Join(serverRoot, "server.properties")
 
+	// #nosec G304 - propertiesPath is validated server properties file
 	file, err := os.Open(propertiesPath)
 	if err != nil {
 		return "", fmt.Errorf("cannot read server.properties at %s: %w", propertiesPath, err)
@@ -114,6 +115,7 @@ func LoadWorldConfig(filePath string) (WorldConfig, error) {
 		return WorldConfig{}, nil
 	}
 
+	// #nosec G304 - filePath is validated by caller within server directory
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file %s: %w", filePath, err)

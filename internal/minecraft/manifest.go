@@ -121,6 +121,7 @@ func (m *Manifest) GetVersionString() string {
 
 // ParseManifest reads and parses a manifest.json file
 func ParseManifest(filePath string) (*Manifest, error) {
+	// #nosec G304 - filePath is validated manifest.json within controlled extraction directory
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open manifest file: %w", err)

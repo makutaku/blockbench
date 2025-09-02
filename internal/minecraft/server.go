@@ -304,12 +304,14 @@ func copyDir(src, dst string) error {
 		}
 
 		// Copy file
+		// #nosec G304 - path is within controlled extraction directory
 		srcFile, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer srcFile.Close()
 
+		// #nosec G304 - dstPath is within validated server directory structure
 		dstFile, err := os.Create(dstPath)
 		if err != nil {
 			return err

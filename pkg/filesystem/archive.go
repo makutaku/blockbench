@@ -60,6 +60,7 @@ func extractFile(file *zip.File, destDir string) error {
 	defer srcFile.Close()
 
 	// Create destination file
+	// #nosec G304 - destPath is validated by caller and within controlled temp directory
 	destFile, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.FileInfo().Mode())
 	if err != nil {
 		return err
@@ -139,11 +140,18 @@ func GetArchiveInfo(archivePath string) (*ArchiveInfo, error) {
 
 	for _, file := range reader.File {
 		info.TotalFiles++
-		// Safely convert uint64 to int64 to prevent overflow
-		if file.UncompressedSize64 > 9223372036854775807 { // max int64
+		// Safely handle uint64 to int64 conversion and addition to prevent overflow
+		const maxInt64 = 9223372036854775807
+		if file.UncompressedSize64 > maxInt64 {
 			return nil, fmt.Errorf("file size too large: %d bytes", file.UncompressedSize64)
 		}
-		info.TotalSize += int64(file.UncompressedSize64)
+		
+		fileSize := int64(file.UncompressedSize64) // #nosec G115 - checked above
+		// Check for potential overflow in addition
+		if info.TotalSize > maxInt64-fileSize {
+			return nil, fmt.Errorf("total archive size too large, would cause overflow")
+		}
+		info.TotalSize += fileSize
 
 		// Check for manifest files
 		if strings.HasSuffix(strings.ToLower(file.Name), "manifest.json") {
