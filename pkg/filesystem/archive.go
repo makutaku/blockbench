@@ -145,7 +145,7 @@ func GetArchiveInfo(archivePath string) (*ArchiveInfo, error) {
 		if file.UncompressedSize64 > maxInt64 {
 			return nil, fmt.Errorf("file size too large: %d bytes", file.UncompressedSize64)
 		}
-		
+
 		fileSize := int64(file.UncompressedSize64) // #nosec G115 - checked above
 		// Check for potential overflow in addition
 		if info.TotalSize > maxInt64-fileSize {
