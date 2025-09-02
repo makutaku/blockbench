@@ -148,7 +148,7 @@ jobs:
 
     - name: Install security scanners
       run: |
-        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+        go install github.com/securego/gosec/v2/cmd/gosec@latest
         go install golang.org/x/vuln/cmd/govulncheck@latest
 
     - name: Run Gosec Security Scanner
