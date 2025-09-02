@@ -1,0 +1,121 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please provide details about what you'd like to see added to Blockbench.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see implemented
+      placeholder: "I would like Blockbench to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: "Other approaches might be..."
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What type of feature is this?
+      options:
+        - Installation/Uninstallation
+        - Listing/Visualization  
+        - Dependency Management
+        - Safety/Backup Features
+        - CLI/User Experience
+        - Performance
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What kind of feature enhancement is this?
+      options:
+        - label: New command or subcommand
+        - label: New command-line flag or option
+        - label: Enhancement to existing functionality
+        - label: New output format or visualization
+        - label: Performance improvement
+        - label: Developer/API feature
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe your specific use case and how this feature would help
+      placeholder: "I manage a server with 50+ addons and need to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Usage
+      description: Show how you envision using this feature
+      placeholder: |
+        ```bash
+        blockbench command --new-flag value
+        ```
+        
+        Expected output:
+        ```
+        Feature working as expected...
+        ```
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would be helpful  
+        - Important for my workflow
+        - Critical/blocking issue
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: Implementation Considerations
+      description: Technical aspects to consider (check all that apply)
+      options:
+        - label: Should maintain backward compatibility
+        - label: May require breaking changes
+        - label: Could affect performance
+        - label: Needs additional dependencies
+        - label: Should work across all platforms (Linux, macOS, Windows)
+        - label: May need configuration options
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples about the feature request
+      placeholder: Any additional information, mockups, or examples that would help understand the request

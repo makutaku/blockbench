@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/makutaku/blockbench/discussions
+    about: Ask questions, share ideas, or discuss Blockbench with the community
+  - name: 📚 Documentation
+    url: https://github.com/makutaku/blockbench/blob/main/README.md
+    about: Read the complete documentation and usage examples
+  - name: 🔧 Troubleshooting
+    url: https://github.com/makutaku/blockbench/blob/main/README.md#troubleshooting
+    about: Check common issues and debugging steps before reporting bugs

@@ -1,0 +1,104 @@
+name: Documentation Issue
+description: Report missing, unclear, or incorrect documentation
+title: "[Docs] "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve the documentation! Report any issues with existing docs or suggest new documentation.
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What type of documentation needs attention?
+      options:
+        - README.md
+        - Command help text (--help)
+        - CLAUDE.md (developer docs)
+        - Error messages
+        - Examples/Usage
+        - Installation instructions
+        - Troubleshooting guide
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      description: What kind of documentation issue is this?
+      options:
+        - Missing information
+        - Incorrect/outdated information
+        - Unclear/confusing explanation
+        - Typo or formatting issue
+        - New documentation needed
+        - Example not working
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is the documentation issue located?
+      placeholder: |
+        - File: README.md, section "Installation"
+        - Command: blockbench install --help
+        - URL: https://github.com/makutaku/blockbench/blob/main/README.md#usage
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-content
+    attributes:
+      label: Current Content (if applicable)
+      description: Copy the current text that needs to be fixed
+      placeholder: Paste the current documentation text here
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: Issue Description
+      description: Describe the problem with the current documentation
+      placeholder: "The documentation says X, but it should say Y because..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: How should this be corrected or improved?
+      placeholder: "The documentation should be updated to..."
+
+  - type: textarea
+    id: context
+    attributes:
+      label: User Context
+      description: What were you trying to do when you found this issue?
+      placeholder: "I was trying to install an addon and followed the README, but..."
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Affected Areas
+      description: What areas of documentation might be affected? (check all that apply)
+      options:
+        - label: New user onboarding
+        - label: Command reference
+        - label: Troubleshooting
+        - label: Advanced features
+        - label: Developer documentation
+        - label: Installation/setup
+        - label: Examples and tutorials
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: Screenshots, links, or other helpful information

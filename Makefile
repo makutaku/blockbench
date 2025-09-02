@@ -77,9 +77,14 @@ test:
 .PHONY: test-coverage
 test-coverage:
 	@echo "Running tests with coverage..."
-	go test -v -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-	@echo "Coverage report generated: coverage.html"
+	go test -v -coverprofile=coverage.out -covermode=atomic ./...
+	@if [ -f coverage.out ]; then \
+		go tool cover -html=coverage.out -o coverage.html; \
+		echo "Coverage report generated: coverage.html"; \
+	else \
+		echo "No test coverage data generated (no tests found)"; \
+		touch coverage.out; \
+	fi
 
 # Lint the code
 .PHONY: lint
