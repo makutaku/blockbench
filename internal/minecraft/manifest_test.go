@@ -9,10 +9,10 @@ import (
 
 func TestParseManifest(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		manifestData string
-		expectError bool
-		validate    func(*testing.T, *Manifest)
+		expectError  bool
+		validate     func(*testing.T, *Manifest)
 	}{
 		{
 			name: "valid behavior pack manifest",
@@ -111,7 +111,7 @@ func TestParseManifest(t *testing.T) {
 					t.Errorf("Expected 1 dependency, got %d", len(m.Dependencies))
 				}
 				if m.Dependencies[0].UUID != "22222222-2222-2222-2222-222222222222" {
-					t.Errorf("Expected dependency UUID '22222222-2222-2222-2222-222222222222', got %q", 
+					t.Errorf("Expected dependency UUID '22222222-2222-2222-2222-222222222222', got %q",
 						m.Dependencies[0].UUID)
 				}
 			},
@@ -146,20 +146,20 @@ func TestParseManifest(t *testing.T) {
 					t.Errorf("Expected 1 dependency, got %d", len(m.Dependencies))
 				}
 				if m.Dependencies[0].ModuleName != "@minecraft/server" {
-					t.Errorf("Expected module name '@minecraft/server', got %q", 
+					t.Errorf("Expected module name '@minecraft/server', got %q",
 						m.Dependencies[0].ModuleName)
 				}
 				if m.Dependencies[0].ModuleVersion != "1.2.0" {
-					t.Errorf("Expected module version '1.2.0', got %q", 
+					t.Errorf("Expected module version '1.2.0', got %q",
 						m.Dependencies[0].ModuleVersion)
 				}
 			},
 		},
 		{
-			name:        "invalid JSON",
+			name:         "invalid JSON",
 			manifestData: `{invalid json`,
-			expectError: true,
-			validate:    nil,
+			expectError:  true,
+			validate:     nil,
 		},
 		{
 			name: "missing required fields",
@@ -192,7 +192,7 @@ func TestParseManifest(t *testing.T) {
 
 			// Parse manifest
 			manifest, err := ParseManifest(manifestPath)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 				return

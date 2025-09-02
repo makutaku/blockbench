@@ -55,10 +55,10 @@ gamemode=creative`,
 			expectError:   false,
 		},
 		{
-			name: "empty properties file",
+			name:           "empty properties file",
 			propertiesData: ``,
-			expectedLevel: "",
-			expectError:   false,
+			expectedLevel:  "",
+			expectError:    false,
 		},
 		{
 			name: "commented level-name",
@@ -96,7 +96,7 @@ level-name=Actual World`,
 					levelName = worldsDir // This would be the case if worlds dir is the world itself
 				}
 			}
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 				return
@@ -145,7 +145,7 @@ func TestLoadWorldConfig(t *testing.T) {
 					t.Errorf("Expected 2 pack configs, got %d", len(config))
 				}
 				if config[0].PackID != "12345678-1234-1234-1234-123456789abc" {
-					t.Errorf("Expected first pack ID '12345678-1234-1234-1234-123456789abc', got %q", 
+					t.Errorf("Expected first pack ID '12345678-1234-1234-1234-123456789abc', got %q",
 						config[0].PackID)
 				}
 				expectedVersion := [3]int{1, 0, 0}
@@ -208,7 +208,7 @@ func TestLoadWorldConfig(t *testing.T) {
 
 			// Test function
 			config, err := LoadWorldConfig(configPath)
-			
+
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
 				return
@@ -267,11 +267,11 @@ func TestSaveWorldConfig(t *testing.T) {
 
 	for i, entry := range config {
 		if loadedConfig[i].PackID != entry.PackID {
-			t.Errorf("Entry %d PackID mismatch: expected %q, got %q", 
+			t.Errorf("Entry %d PackID mismatch: expected %q, got %q",
 				i, entry.PackID, loadedConfig[i].PackID)
 		}
 		if loadedConfig[i].Version != entry.Version {
-			t.Errorf("Entry %d Version mismatch: expected %v, got %v", 
+			t.Errorf("Entry %d Version mismatch: expected %v, got %v",
 				i, entry.Version, loadedConfig[i].Version)
 		}
 	}
@@ -287,7 +287,7 @@ func TestSaveWorldConfigEmptyConfig(t *testing.T) {
 	// Test empty config
 	config := WorldConfig{}
 	configPath := filepath.Join(tempDir, "empty_config.json")
-	
+
 	err = SaveWorldConfig(configPath, config)
 	if err != nil {
 		t.Fatalf("Failed to save empty config: %v", err)

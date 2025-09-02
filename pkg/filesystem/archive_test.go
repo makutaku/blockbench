@@ -45,7 +45,9 @@ func TestValidateArchive(t *testing.T) {
 			name: "invalid zip file",
 			setupFunc: func() string {
 				invalidPath := filepath.Join(tempDir, "invalid.zip")
-				os.WriteFile(invalidPath, []byte("not a zip file"), 0600)
+				if err := os.WriteFile(invalidPath, []byte("not a zip file"), 0600); err != nil {
+					t.Fatalf("Failed to create invalid zip file: %v", err)
+				}
 				return invalidPath
 			},
 			expectError: true,
@@ -77,10 +79,10 @@ func TestExtractArchive(t *testing.T) {
 	// Create test zip
 	zipPath := filepath.Join(tempDir, "test.zip")
 	testFiles := map[string]string{
-		"manifest.json":       `{"format_version": 2}`,
-		"textures/icon.png":   "fake png data",
-		"behaviors/main.js":   "console.log('test');",
-		"folder/":             "", // directory entry
+		"manifest.json":     `{"format_version": 2}`,
+		"textures/icon.png": "fake png data",
+		"behaviors/main.js": "console.log('test');",
+		"folder/":           "", // directory entry
 	}
 	createTestZip(t, zipPath, testFiles)
 
@@ -133,7 +135,7 @@ func TestExtractArchiveWithPathTraversal(t *testing.T) {
 
 	extractDir := filepath.Join(tempDir, "extracted")
 	err = ExtractArchive(zipPath, extractDir)
-	
+
 	// Should fail due to path traversal protection
 	if err == nil {
 		t.Error("Expected error for path traversal attempt, but extraction succeeded")
@@ -150,10 +152,10 @@ func TestGetArchiveInfo(t *testing.T) {
 	// Create test zip with known content
 	zipPath := filepath.Join(tempDir, "info-test.zip")
 	testFiles := map[string]string{
-		"manifest.json":       `{"format_version": 2}`,
-		"pack_icon.png":       "fake png data (12 bytes)",
-		"textures/test.png":   "more fake data",
-		"behaviors/":          "", // directory
+		"manifest.json":     `{"format_version": 2}`,
+		"pack_icon.png":     "fake png data (12 bytes)",
+		"textures/test.png": "more fake data",
+		"behaviors/":        "", // directory
 	}
 	createTestZip(t, zipPath, testFiles)
 
@@ -191,7 +193,7 @@ func TestGetArchiveInfoWithLargeFile(t *testing.T) {
 	// Test the overflow protection by creating a zip file manually
 	// with a manipulated UncompressedSize64 field
 	zipPath := filepath.Join(tempDir, "large-file-test.zip")
-	
+
 	// Create a normal zip first
 	createTestZip(t, zipPath, map[string]string{
 		"test.txt": "small content",
