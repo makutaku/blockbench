@@ -7,14 +7,22 @@ import (
 
 // ValidateUUID checks if a string is a valid UUID format
 func ValidateUUID(uuid string) bool {
-	// UUID regex pattern (with or without dashes)
-	uuidPattern := `^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$`
+	// UUID regex pattern - either all dashes or no dashes
+	uuidWithDashes := `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`
+	uuidWithoutDashes := `^[0-9a-fA-F]{32}$`
 
-	matched, err := regexp.MatchString(uuidPattern, uuid)
+	matched, err := regexp.MatchString(uuidWithDashes, uuid)
 	if err != nil {
 		return false
 	}
+	if matched {
+		return true
+	}
 
+	matched, err = regexp.MatchString(uuidWithoutDashes, uuid)
+	if err != nil {
+		return false
+	}
 	return matched
 }
 
