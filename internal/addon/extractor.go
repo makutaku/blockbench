@@ -72,14 +72,18 @@ func ExtractAddon(addonPath string, dryRun bool) (*ExtractedAddon, error) {
 
 	// Extract archive
 	if err := filesystem.ExtractArchive(addonPath, tempDir); err != nil {
-		os.RemoveAll(tempDir)
+		if rmErr := os.RemoveAll(tempDir); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to cleanup temp directory: %v\n", rmErr)
+		}
 		return nil, fmt.Errorf("failed to extract archive: %w", err)
 	}
 
 	// Check if we need to extract nested .mcpack files (only for .mcaddon files)
 	if ext == ".mcaddon" {
 		if err := extractNestedMcpacks(tempDir); err != nil {
-			os.RemoveAll(tempDir)
+			if rmErr := os.RemoveAll(tempDir); rmErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to cleanup temp directory: %v\n", rmErr)
+			}
 			return nil, fmt.Errorf("failed to extract nested mcpack files: %w", err)
 		}
 	}
@@ -87,7 +91,9 @@ func ExtractAddon(addonPath string, dryRun bool) (*ExtractedAddon, error) {
 	// Analyze extracted contents
 	addon, err := analyzeExtractedAddon(tempDir)
 	if err != nil {
-		os.RemoveAll(tempDir)
+		if rmErr := os.RemoveAll(tempDir); rmErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to cleanup temp directory: %v\n", rmErr)
+		}
 		return nil, fmt.Errorf("failed to analyze extracted addon: %w", err)
 	}
 

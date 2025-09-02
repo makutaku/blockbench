@@ -18,7 +18,7 @@ func ExtractArchive(archivePath, destDir string) error {
 	defer reader.Close()
 
 	// Create destination directory
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0750); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -48,7 +48,7 @@ func extractFile(file *zip.File, destDir string) error {
 	}
 
 	// Create parent directories
-	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
 		return err
 	}
 
@@ -66,9 +66,20 @@ func extractFile(file *zip.File, destDir string) error {
 	}
 	defer destFile.Close()
 
-	// Copy file contents
-	_, err = io.Copy(destFile, srcFile)
-	return err
+	// Copy file contents with size limit to prevent decompression bombs
+	const maxFileSize = 100 * 1024 * 1024 // 100MB limit per file
+	limitedReader := io.LimitReader(srcFile, maxFileSize)
+	written, err := io.Copy(destFile, limitedReader)
+	if err != nil {
+		return err
+	}
+	
+	// Check if we hit the limit (potential decompression bomb)
+	if written >= maxFileSize {
+		return fmt.Errorf("file too large after decompression: %s (exceeded 100MB limit)", file.Name)
+	}
+	
+	return nil
 }
 
 // ValidateArchive performs basic validation on a ZIP archive
@@ -128,6 +139,10 @@ func GetArchiveInfo(archivePath string) (*ArchiveInfo, error) {
 
 	for _, file := range reader.File {
 		info.TotalFiles++
+		// Safely convert uint64 to int64 to prevent overflow
+		if file.UncompressedSize64 > 9223372036854775807 { // max int64
+			return nil, fmt.Errorf("file size too large: %d bytes", file.UncompressedSize64)
+		}
 		info.TotalSize += int64(file.UncompressedSize64)
 
 		// Check for manifest files

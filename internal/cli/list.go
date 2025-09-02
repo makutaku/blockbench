@@ -155,7 +155,9 @@ func renderSimpleTable(packs []minecraft.InstalledPack) {
 			name, pack.Type, pack.PackID, version, description)
 	}
 
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+	}
 }
 
 func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly bool, verbose bool) error {
@@ -183,7 +185,9 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				name, rel.Pack.Type, version, dependentCount, modules)
 		}
-		w.Flush()
+		if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+	}
 		fmt.Println()
 	}
 
@@ -209,7 +213,9 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 				name, rel.Pack.Type, version, dependencyCount, modules)
 		}
-		w.Flush()
+		if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+	}
 		fmt.Println()
 	}
 
@@ -234,7 +240,9 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
 				name, rel.Pack.Type, version, modules)
 		}
-		w.Flush()
+		if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+	}
 		fmt.Println()
 	}
 
@@ -297,7 +305,9 @@ func renderSimpleRelationshipTable(relationships []addon.PackRelationship) {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 			name, rel.Pack.Type, rel.Pack.PackID, version, modules)
 	}
-	w.Flush()
+	if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Failed to flush output: %v\n", err)
+	}
 }
 
 func outputDependencyJSON(group *addon.DependencyGroup, standaloneOnly, rootsOnly bool) error {

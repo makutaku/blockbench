@@ -42,7 +42,7 @@ func (bm *BackupManager) CreateBackup(operation, description string, files []str
 
 	// Create backup directory
 	backupDir := filepath.Join(bm.BackupRoot, backupID)
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := os.MkdirAll(backupDir, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
@@ -60,7 +60,10 @@ func (bm *BackupManager) CreateBackup(operation, description string, files []str
 	for _, file := range files {
 		if err := bm.backupFile(file, backupDir); err != nil {
 			// Cleanup on error
-			os.RemoveAll(backupDir)
+			if rmErr := os.RemoveAll(backupDir); rmErr != nil {
+				// Log cleanup failure but don't override original error
+				fmt.Fprintf(os.Stderr, "Warning: Failed to cleanup backup directory: %v\n", rmErr)
+			}
 			return nil, fmt.Errorf("failed to backup %s: %w", file, err)
 		}
 		metadata.Files = append(metadata.Files, file)
@@ -68,7 +71,10 @@ func (bm *BackupManager) CreateBackup(operation, description string, files []str
 
 	// Save metadata
 	if err := bm.saveMetadata(&metadata); err != nil {
-		os.RemoveAll(backupDir)
+		if rmErr := os.RemoveAll(backupDir); rmErr != nil {
+			// Log cleanup failure but don't override original error
+			fmt.Fprintf(os.Stderr, "Warning: Failed to cleanup backup directory: %v\n", rmErr)
+		}
 		return nil, fmt.Errorf("failed to save backup metadata: %w", err)
 	}
 
@@ -116,7 +122,7 @@ func (bm *BackupManager) DeleteBackup(backupID string) error {
 
 // ListBackups returns a list of all backups
 func (bm *BackupManager) ListBackups() ([]BackupMetadata, error) {
-	if err := os.MkdirAll(bm.BackupRoot, 0755); err != nil {
+	if err := os.MkdirAll(bm.BackupRoot, 0750); err != nil {
 		return nil, fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
@@ -151,7 +157,7 @@ func (bm *BackupManager) backupFile(source, backupDir string) error {
 	if os.IsNotExist(err) {
 		// Create empty marker file for non-existent files
 		markerFile := backupPath + ".missing"
-		return os.WriteFile(markerFile, []byte(""), 0644)
+		return os.WriteFile(markerFile, []byte(""), 0600)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to stat source file: %w", err)
@@ -207,7 +213,7 @@ func (bm *BackupManager) saveMetadata(metadata *BackupMetadata) error {
 		return fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
-	return os.WriteFile(metadataFile, data, 0644)
+	return os.WriteFile(metadataFile, data, 0600)
 }
 
 // loadMetadata loads backup metadata from a JSON file
@@ -235,7 +241,7 @@ func generateBackupID() string {
 // copyFile copies a single file
 func copyFile(src, dst string) error {
 	// Create parent directories
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0750); err != nil {
 		return err
 	}
 

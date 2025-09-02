@@ -134,7 +134,7 @@ func SaveWorldConfig(filePath string, config WorldConfig) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0644); err != nil {
+	if err := os.WriteFile(filePath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file %s: %w", filePath, err)
 	}
 
