@@ -79,7 +79,13 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		result.Errors = append(result.Errors, fmt.Sprintf("Extraction failed: %v", err))
 		return result, err
 	}
-	defer extractedAddon.Cleanup()
+	defer func() {
+		if cleanupErr := extractedAddon.Cleanup(); cleanupErr != nil {
+			if options.Verbose {
+				fmt.Printf("Warning: Failed to cleanup temporary files: %v\n", cleanupErr)
+			}
+		}
+	}()
 
 	// Show extraction results with pack details
 	extractionDetails := []string{
