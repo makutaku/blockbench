@@ -45,3 +45,6 @@ release-notes-*.md
 
 # Log files
 *.log
+
+# Claude Code local settings
+.claude/
