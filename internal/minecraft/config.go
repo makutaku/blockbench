@@ -150,7 +150,8 @@ func SaveWorldConfig(filePath string, config WorldConfig) error {
 
 	// Atomic rename (on same filesystem, this is atomic)
 	if err := os.Rename(tmpFile, filePath); err != nil {
-		os.Remove(tmpFile) // Clean up temp file on error
+		// Clean up temp file on error, ignore cleanup errors as we're already failing
+		_ = os.Remove(tmpFile) // #nosec G104 - cleanup on error path, already returning error
 		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
