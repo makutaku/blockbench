@@ -194,10 +194,10 @@ func ValidateManifest(manifest *Manifest) error {
 	}
 
 	validModuleTypes := map[string]bool{
-		"data":      true,
-		"resources": true,
-		"script":    true,
-		"skin_pack": true,
+		"data":           true,
+		"resources":      true,
+		"script":         true,
+		"skin_pack":      true,
 		"world_template": true,
 	}
 
