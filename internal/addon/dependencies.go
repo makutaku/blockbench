@@ -195,7 +195,8 @@ func (da *DependencyAnalyzer) calculateDependents(relationships map[string]*Pack
 // Space Complexity: O(V) for visited/recursion stack tracking
 //
 // Example:
-//   If Pack A → Pack B → Pack C → Pack A, this will detect the cycle [A, B, C]
+//
+//	If Pack A → Pack B → Pack C → Pack A, this will detect the cycle [A, B, C]
 func (da *DependencyAnalyzer) detectCircularDependencies(relationships map[string]*PackRelationship) [][]PackRelationship {
 	// visited: all packs we've seen during any DFS traversal
 	visited := make(map[string]bool)
