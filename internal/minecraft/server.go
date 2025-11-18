@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/makutaku/blockbench/pkg/validation"
 )
 
 // Server represents a Minecraft Bedrock server instance
@@ -46,7 +48,7 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	}
 
 	// Create pack directory name
-	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:8])
+	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:validation.UUIDShortDisplayLength])
 	finalPackDir := filepath.Join(targetDir, packDirName)
 
 	// Copy pack files
@@ -259,7 +261,44 @@ func (s *Server) removePackDir(baseDir, packID string) error {
 	return fmt.Errorf("pack directory not found for pack ID %s", packID)
 }
 
-// loadPackManifest loads a manifest for an installed pack
+// FindAndLoadManifestByUUID finds a pack's manifest by UUID
+// This is useful when you know the pack ID but not its directory name
+func (s *Server) FindAndLoadManifestByUUID(packID string, packType PackType) (*Manifest, error) {
+	var baseDir string
+	switch packType {
+	case PackTypeBehavior:
+		baseDir = s.Paths.BehaviorPacksDir
+	case PackTypeResource:
+		baseDir = s.Paths.ResourcePacksDir
+	default:
+		return nil, fmt.Errorf("unknown pack type: %s", packType)
+	}
+
+	entries, err := os.ReadDir(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory %s: %w", baseDir, err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		manifestPath := filepath.Join(baseDir, entry.Name(), "manifest.json")
+		manifest, err := ParseManifest(manifestPath)
+		if err != nil {
+			continue // Skip directories without valid manifests
+		}
+
+		if manifest.Header.UUID == packID {
+			return manifest, nil
+		}
+	}
+
+	return nil, fmt.Errorf("manifest not found for pack ID %s in %s packs", packID, packType)
+}
+
+// loadPackManifest loads a manifest for an installed pack (internal helper)
 func (s *Server) loadPackManifest(baseDir, packID string) (*Manifest, error) {
 	entries, err := os.ReadDir(baseDir)
 	if err != nil {

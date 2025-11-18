@@ -114,8 +114,8 @@ func (m *Manifest) GetDisplayName() string {
 		return m.Header.Name
 	}
 	// Ensure UUID is long enough before slicing
-	if len(m.Header.UUID) >= 8 {
-		return fmt.Sprintf("Pack-%s", m.Header.UUID[:8])
+	if len(m.Header.UUID) >= validation.UUIDShortDisplayLength {
+		return fmt.Sprintf("Pack-%s", m.Header.UUID[:validation.UUIDShortDisplayLength])
 	}
 	return fmt.Sprintf("Pack-%s", m.Header.UUID)
 }

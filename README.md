@@ -235,19 +235,150 @@ make clean         # Clean build artifacts
 ## 🐛 Troubleshooting
 
 ### Common Issues
-- **"Server validation failed"** - Check `server.properties` contains `level-name`
-- **"World config not found"** - Ensure world directory and JSON files exist
-- **"Pack already installed"** - Use `--force` flag or check for UUID conflicts
-- **"No manifest found"** - Verify addon file is a valid ZIP archive
+
+#### Installation Failures
+
+**"Server validation failed: server.properties not found"**
+- **Cause**: The path provided is not a valid Minecraft Bedrock server directory
+- **Solution**: Ensure you're pointing to the server root (where `server.properties` is located)
+  ```bash
+  # Correct
+  blockbench install addon.mcaddon /path/to/bedrock-server
+
+  # Incorrect
+  blockbench install addon.mcaddon /path/to/bedrock-server/worlds
+  ```
+
+**"level-name property not found in server.properties"**
+- **Cause**: `server.properties` doesn't contain the `level-name` configuration
+- **Solution**: Add the level-name property to your `server.properties`:
+  ```properties
+  level-name=Bedrock level
+  ```
+
+**"World config not found"**
+- **Cause**: World directory or configuration JSON files are missing
+- **Solution**:
+  1. Ensure the world directory exists in `worlds/[level-name]/`
+  2. Check for `world_behavior_packs.json` and `world_resource_packs.json`
+  3. If missing, create them as empty arrays: `[]`
+
+**"Pack already installed" or UUID conflict**
+- **Cause**: A pack with the same UUID is already installed
+- **Solution**:
+  ```bash
+  # List installed packs to see conflicts
+  blockbench list /server
+
+  # Force reinstall (replaces existing)
+  blockbench install addon.mcaddon /server --force
+
+  # Or uninstall first
+  blockbench uninstall <pack-uuid> /server
+  ```
+
+**"No manifest found in archive" or "Invalid addon file"**
+- **Cause**: The file is not a valid .mcaddon/.mcpack ZIP archive
+- **Solution**:
+  1. Verify the file is a valid ZIP: `unzip -t addon.mcaddon`
+  2. Check that `manifest.json` exists in the pack root
+  3. Ensure the manifest is valid JSON with required fields
+
+**"Missing dependencies: Pack requires X"**
+- **Cause**: The addon depends on packs that aren't installed
+- **Solution**:
+  ```bash
+  # See what's missing
+  blockbench install addon.mcaddon /server --dry-run
+
+  # Install dependencies first, or use --force to skip validation
+  blockbench install addon.mcaddon /server --force
+  ```
+
+**"Circular dependency detected"**
+- **Cause**: Packs have circular dependency relationships (A→B→C→A)
+- **Solution**: This is typically a pack design issue. Review pack manifests:
+  ```bash
+  # Visualize dependencies
+  blockbench list /server --tree
+  ```
+
+#### Permission Errors
+
+**"Permission denied" when installing**
+- **Cause**: Insufficient permissions to write to server directories
+- **Solution**:
+  ```bash
+  # Check directory permissions
+  ls -la /server/development_behavior_packs
+
+  # Fix ownership (Linux/macOS)
+  sudo chown -R $USER:$USER /server
+
+  # Or run with appropriate permissions
+  sudo blockbench install addon.mcaddon /server
+  ```
+
+**"Failed to create config directory"**
+- **Cause**: Cannot write to world configuration directory
+- **Solution**: Ensure write permissions on `worlds/[level-name]/`
+
+#### Uninstallation Issues
+
+**"Cannot uninstall: Pack X depends on this pack"**
+- **Cause**: Other packs depend on the one you're trying to remove
+- **Solution**:
+  ```bash
+  # See what depends on it
+  blockbench list /server --grouped
+
+  # Uninstall dependents first, or force removal
+  blockbench uninstall <pack-uuid> /server --force
+  ```
+
+#### Large Pack Issues
+
+**"File too large after decompression"**
+- **Cause**: Pack exceeds 100MB default limit (decompression bomb protection)
+- **Solution**: Increase the limit for large texture packs:
+  ```bash
+  # Allow up to 200MB
+  export BLOCKBENCH_MAX_FILE_SIZE=209715200
+  blockbench install large-pack.mcaddon /server
+  ```
 
 ### Debug Information
+
 ```bash
-# Verbose output for troubleshooting
+# Verbose output for detailed troubleshooting
 blockbench install addon.mcaddon /server --verbose
 
-# Dry-run to see what would happen
-blockbench install addon.mcaddon /server --dry-run --verbose  
+# Dry-run to preview operations without making changes
+blockbench install addon.mcaddon /server --dry-run --verbose
 
-# Interactive mode for step-by-step debugging
+# Interactive mode for step-by-step confirmation
 blockbench install addon.mcaddon /server --interactive
+
+# Check what's currently installed
+blockbench list /server
+
+# See dependency relationships
+blockbench list /server --tree
+
+# JSON output for scripting/debugging
+blockbench list /server --json
 ```
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check verbose output**: Most errors include suggestions in `--verbose` mode
+2. **Validate your setup**: Run `blockbench list /server` to ensure basic functionality
+3. **Check server structure**: Ensure your server follows the standard Bedrock layout
+4. **Review logs**: Check for detailed error messages in the output
+5. **Report issues**: [Open an issue](https://github.com/makutaku/blockbench/issues) with:
+   - Command you ran
+   - Full error message
+   - Server directory structure (`tree -L 2 /server`)
+   - Blockbench version (`blockbench version`)

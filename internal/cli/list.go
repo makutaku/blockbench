@@ -10,6 +10,7 @@ import (
 
 	"github.com/makutaku/blockbench/internal/addon"
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/makutaku/blockbench/pkg/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -141,7 +142,7 @@ func renderSimpleTable(packs []minecraft.InstalledPack) {
 	for _, pack := range packs {
 		name := pack.Name
 		if name == "" {
-			name = fmt.Sprintf("Pack-%s", pack.PackID[:8])
+			name = fmt.Sprintf("Pack-%s", pack.PackID[:validation.UUIDShortDisplayLength])
 		}
 
 		description := pack.Description
@@ -173,7 +174,7 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 		for _, rel := range group.RootPacks {
 			name := rel.Pack.Name
 			if name == "" {
-				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:8])
+				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:validation.UUIDShortDisplayLength])
 			}
 			version := fmt.Sprintf("%d.%d.%d", rel.Pack.Version[0], rel.Pack.Version[1], rel.Pack.Version[2])
 			dependentCount := fmt.Sprintf("%d pack(s)", len(rel.Dependents))
@@ -201,7 +202,7 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 		for _, rel := range group.DependentPacks {
 			name := rel.Pack.Name
 			if name == "" {
-				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:8])
+				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:validation.UUIDShortDisplayLength])
 			}
 			version := fmt.Sprintf("%d.%d.%d", rel.Pack.Version[0], rel.Pack.Version[1], rel.Pack.Version[2])
 			dependencyCount := fmt.Sprintf("%d pack(s)", len(rel.Dependencies))
@@ -229,7 +230,7 @@ func renderGroupedView(group *addon.DependencyGroup, standaloneOnly, rootsOnly b
 		for _, rel := range group.StandalonePacks {
 			name := rel.Pack.Name
 			if name == "" {
-				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:8])
+				name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:validation.UUIDShortDisplayLength])
 			}
 			version := fmt.Sprintf("%d.%d.%d", rel.Pack.Version[0], rel.Pack.Version[1], rel.Pack.Version[2])
 			modules := strings.Join(rel.Modules, ", ")
@@ -294,7 +295,7 @@ func renderSimpleRelationshipTable(relationships []addon.PackRelationship) {
 	for _, rel := range relationships {
 		name := rel.Pack.Name
 		if name == "" {
-			name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:8])
+			name = fmt.Sprintf("Pack-%s", rel.Pack.PackID[:validation.UUIDShortDisplayLength])
 		}
 		version := fmt.Sprintf("%d.%d.%d", rel.Pack.Version[0], rel.Pack.Version[1], rel.Pack.Version[2])
 		modules := strings.Join(rel.Modules, ", ")
