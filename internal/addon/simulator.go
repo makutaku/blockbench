@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/makutaku/blockbench/pkg/validation"
 )
 
 // DryRunSimulator provides simulation of file operations for dry-run mode
@@ -66,7 +67,7 @@ func (s *DryRunSimulator) SimulatePackInstallation(pack *ExtractedPack) (*Simula
 	}
 
 	// Create pack directory name (same logic as real installation)
-	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:8])
+	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:validation.UUIDShortDisplayLength])
 	finalPackDir := filepath.Join(targetDir, packDirName)
 
 	// Simulate config entry that would be added

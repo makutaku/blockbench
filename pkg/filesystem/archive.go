@@ -10,8 +10,19 @@ import (
 	"strings"
 )
 
-// Default maximum file size for decompression (100MB)
-const defaultMaxFileSize = 100 * 1024 * 1024
+const (
+	// DefaultMaxFileSize is the default maximum file size for decompression (100MB)
+	DefaultMaxFileSize = 100 * 1024 * 1024
+
+	// DefaultDirPerm is the default permission for created directories
+	DefaultDirPerm = 0750
+
+	// DefaultFilePerm is the default permission for created files
+	DefaultFilePerm = 0600
+)
+
+// defaultMaxFileSize kept for backward compatibility with getMaxFileSize
+const defaultMaxFileSize = DefaultMaxFileSize
 
 // getMaxFileSize returns the maximum file size for extraction
 // Can be configured via BLOCKBENCH_MAX_FILE_SIZE environment variable
@@ -35,7 +46,7 @@ func ExtractArchive(archivePath, destDir string) error {
 	defer reader.Close()
 
 	// Create destination directory
-	if err := os.MkdirAll(destDir, 0750); err != nil {
+	if err := os.MkdirAll(destDir, DefaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -70,7 +81,7 @@ func extractFile(file *zip.File, destDir string) error {
 	}
 
 	// Create parent directories
-	if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
+	if err := os.MkdirAll(filepath.Dir(destPath), DefaultDirPerm); err != nil {
 		return err
 	}
 

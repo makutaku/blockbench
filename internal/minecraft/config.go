@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/makutaku/blockbench/pkg/filesystem"
 )
 
 // PackReference represents a pack reference in world config files
@@ -138,13 +140,13 @@ func SaveWorldConfig(filePath string, config WorldConfig) error {
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0750); err != nil {
+	if err := os.MkdirAll(dir, filesystem.DefaultDirPerm); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// Write to temporary file first
 	tmpFile := filePath + ".tmp"
-	if err := os.WriteFile(tmpFile, data, 0600); err != nil {
+	if err := os.WriteFile(tmpFile, data, filesystem.DefaultFilePerm); err != nil {
 		return fmt.Errorf("failed to write temp config file: %w", err)
 	}
 

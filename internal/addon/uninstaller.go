@@ -2,8 +2,6 @@ package addon
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/makutaku/blockbench/internal/minecraft"
@@ -227,46 +225,9 @@ func (u *Uninstaller) checkDependencies(packID string, verbose bool, result *Uni
 	return dependents, nil
 }
 
-// loadPackManifest loads a manifest for an installed pack
+// loadPackManifest loads a manifest for an installed pack using the shared server method
 func (u *Uninstaller) loadPackManifest(packID string, packType minecraft.PackType) (*minecraft.Manifest, error) {
-	var baseDir string
-
-	switch packType {
-	case minecraft.PackTypeBehavior:
-		baseDir = u.server.Paths.BehaviorPacksDir
-	case minecraft.PackTypeResource:
-		baseDir = u.server.Paths.ResourcePacksDir
-	default:
-		return nil, fmt.Errorf("unknown pack type: %s", packType)
-	}
-
-	return u.findAndLoadManifest(baseDir, packID)
-}
-
-// findAndLoadManifest finds and loads a manifest by pack ID
-func (u *Uninstaller) findAndLoadManifest(baseDir, packID string) (*minecraft.Manifest, error) {
-	entries, err := os.ReadDir(baseDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read directory %s: %w", baseDir, err)
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		manifestPath := filepath.Join(baseDir, entry.Name(), "manifest.json")
-		manifest, err := minecraft.ParseManifest(manifestPath)
-		if err != nil {
-			continue // Skip if can't read manifest
-		}
-
-		if manifest.Header.UUID == packID {
-			return manifest, nil
-		}
-	}
-
-	return nil, fmt.Errorf("manifest not found for pack ID %s", packID)
+	return u.server.FindAndLoadManifestByUUID(packID, packType)
 }
 
 // postUninstallValidation validates that the pack was successfully removed

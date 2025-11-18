@@ -5,6 +5,17 @@ import (
 	"strings"
 )
 
+const (
+	// UUIDShortDisplayLength is the number of characters to show in short UUID displays
+	UUIDShortDisplayLength = 8
+
+	// UUIDFullLength is the full length of a UUID with dashes (8-4-4-4-12 = 36 chars)
+	UUIDFullLength = 36
+
+	// UUIDCompactLength is the length of a UUID without dashes (32 hex chars)
+	UUIDCompactLength = 32
+)
+
 // ValidateUUID checks if a string is a valid UUID format
 func ValidateUUID(uuid string) bool {
 	// UUID regex pattern - either all dashes or no dashes
@@ -33,11 +44,11 @@ func NormalizeUUID(uuid string) string {
 	clean = strings.ToLower(clean)
 
 	// Add dashes in the correct positions
-	if len(clean) == 32 {
+	if len(clean) == UUIDCompactLength {
 		return clean[:8] + "-" + clean[8:12] + "-" + clean[12:16] + "-" + clean[16:20] + "-" + clean[20:]
 	}
 
-	return uuid // Return original if not 32 characters
+	return uuid // Return original if not the correct length
 }
 
 // IsValidVersion checks if a version array is valid
