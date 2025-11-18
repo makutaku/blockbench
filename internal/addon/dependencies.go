@@ -9,26 +9,45 @@ import (
 	"github.com/makutaku/blockbench/pkg/validation"
 )
 
-// PackRelationship represents a pack and its dependency relationships
+// PackRelationship represents a pack and its complete dependency graph
+//
+// This structure captures both forward dependencies (what this pack needs)
+// and reverse dependencies (what needs this pack), enabling impact analysis
+// for operations like uninstallation.
 type PackRelationship struct {
-	Pack         minecraft.InstalledPack
-	Dependencies []string // UUIDs this pack depends on
-	Dependents   []string // UUIDs that depend on this pack
-	Modules      []string // Script API modules used
-	Manifest     *minecraft.Manifest
+	Pack         minecraft.InstalledPack // The pack itself (UUID, name, type, version)
+	Dependencies []string                // UUIDs of packs this pack depends on (forward edges)
+	Dependents   []string                // UUIDs of packs that depend on this pack (reverse edges)
+	Modules      []string                // Script API modules used (e.g., "@minecraft/server")
+	Manifest     *minecraft.Manifest     // Full manifest data for detailed analysis
 }
 
-// DependencyGroup represents logically grouped packs by their relationships
+// DependencyGroup represents packs categorized by their relationship patterns
+//
+// Packs are classified into four mutually exclusive categories based on their
+// dependency graph topology. This enables sophisticated listing and visualization.
+//
+// Example classification:
+//   - Pack A (no dependencies, Pack B depends on it) → RootPack
+//   - Pack B (depends on Pack A) → DependentPack
+//   - Pack C (no dependencies, nothing depends on it) → StandalonePack
+//   - Packs D→E→F→D → CircularGroup
 type DependencyGroup struct {
-	RootPacks       []PackRelationship   // Packs that others depend on
-	DependentPacks  []PackRelationship   // Packs that depend on others
-	StandalonePacks []PackRelationship   // Packs with no dependencies/dependents
-	CircularGroups  [][]PackRelationship // Circular dependency chains
+	RootPacks       []PackRelationship   // Foundation packs others depend on (in-degree > 0, out-degree = 0)
+	DependentPacks  []PackRelationship   // Packs requiring other packs (out-degree > 0, not in circular group)
+	StandalonePacks []PackRelationship   // Self-contained packs (in-degree = 0, out-degree = 0)
+	CircularGroups  [][]PackRelationship // Circular dependency chains detected by DFS
 }
 
-// DependencyAnalyzer analyzes pack dependencies and relationships
+// DependencyAnalyzer analyzes pack dependencies and relationship graphs
+//
+// Provides methods to:
+// - Build complete dependency graphs from installed packs
+// - Detect circular dependencies using DFS
+// - Group packs by relationship patterns
+// - Validate dependency satisfaction before operations
 type DependencyAnalyzer struct {
-	server *minecraft.Server
+	server *minecraft.Server // Server instance for pack discovery and manifest loading
 }
 
 // NewDependencyAnalyzer creates a new dependency analyzer
@@ -163,32 +182,56 @@ func (da *DependencyAnalyzer) calculateDependents(relationships map[string]*Pack
 	}
 }
 
-// detectCircularDependencies finds circular dependency chains using DFS
+// detectCircularDependencies finds circular dependency chains using Depth-First Search (DFS)
+//
+// Algorithm:
+// 1. Maintain a "visited" set to track all nodes seen during the search
+// 2. Maintain a "recursionStack" to track nodes in the current DFS path
+// 3. For each unvisited pack, perform DFS traversal
+// 4. If we encounter a node that's in the recursion stack, we've found a cycle
+// 5. Extract the cycle from the path and add to results (avoiding duplicates)
+//
+// Time Complexity: O(V + E) where V = number of packs, E = number of dependencies
+// Space Complexity: O(V) for visited/recursion stack tracking
+//
+// Example:
+//   If Pack A → Pack B → Pack C → Pack A, this will detect the cycle [A, B, C]
 func (da *DependencyAnalyzer) detectCircularDependencies(relationships map[string]*PackRelationship) [][]PackRelationship {
+	// visited: all packs we've seen during any DFS traversal
 	visited := make(map[string]bool)
+	// recursionStack: packs currently in the DFS path (detects back edges)
 	recursionStack := make(map[string]bool)
+	// allCycles: all detected circular dependency chains
 	var allCycles [][]PackRelationship
+	// cycleFound: deduplicates cycles (same cycle from different starting points)
 	cycleFound := make(map[string]bool)
 
+	// DFS closure that traverses the dependency graph
+	// Returns the cycle path if one is found, nil otherwise
 	var dfs func(packID string, path []string) []string
 	dfs = func(packID string, path []string) []string {
+		// Mark current pack as visited and add to recursion stack
 		visited[packID] = true
 		recursionStack[packID] = true
 		path = append(path, packID)
 
 		rel, exists := relationships[packID]
 		if !exists {
+			// Pack has no dependencies, remove from recursion stack and return
 			recursionStack[packID] = false
 			return nil
 		}
 
+		// Explore all dependencies
 		for _, depID := range rel.Dependencies {
 			if !visited[depID] {
+				// Unvisited dependency: recurse deeper
 				if cyclePath := dfs(depID, path); cyclePath != nil {
 					return cyclePath
 				}
 			} else if recursionStack[depID] {
-				// Found cycle - extract it from path
+				// Back edge detected! This dependency is in our current path = circular dependency
+				// Extract the cycle portion from the path
 				cycleStart := -1
 				for i, id := range path {
 					if id == depID {
@@ -197,20 +240,24 @@ func (da *DependencyAnalyzer) detectCircularDependencies(relationships map[strin
 					}
 				}
 				if cycleStart != -1 {
+					// Return path from cycle start to current (forms the cycle)
 					return path[cycleStart:]
 				}
 			}
+			// If visited but not in recursion stack, it's a cross edge (already explored)
 		}
 
+		// Done exploring this pack, remove from recursion stack
 		recursionStack[packID] = false
 		return nil
 	}
 
-	// Find all cycles
+	// Find all cycles by starting DFS from each unvisited pack
 	for packID := range relationships {
 		if !visited[packID] {
 			if cyclePath := dfs(packID, []string{}); cyclePath != nil {
 				// Check if we've already found this cycle (avoid duplicates)
+				// Create unique key from sorted pack IDs in cycle
 				cycleKey := ""
 				for _, id := range cyclePath {
 					cycleKey += id + ","
@@ -218,7 +265,7 @@ func (da *DependencyAnalyzer) detectCircularDependencies(relationships map[strin
 				if !cycleFound[cycleKey] {
 					cycleFound[cycleKey] = true
 
-					// Convert path to PackRelationships
+					// Convert UUID path to PackRelationship objects
 					cyclePacks := make([]PackRelationship, 0, len(cyclePath))
 					for _, id := range cyclePath {
 						if rel, ok := relationships[id]; ok {
