@@ -88,7 +88,7 @@ func getWorldNameFromProperties(serverRoot string) (string, error) {
 		return "", fmt.Errorf("error reading server.properties: %w", err)
 	}
 
-	return "", fmt.Errorf("level-name property not found in %s", propertiesPath)
+	return "", fmt.Errorf("level-name property not found in %s. Ensure your server.properties file contains a valid 'level-name=' entry (e.g., 'level-name=Bedrock level')", propertiesPath)
 }
 
 // ValidateServerStructure checks if the server directory has the expected structure
@@ -129,15 +129,30 @@ func LoadWorldConfig(filePath string) (WorldConfig, error) {
 	return config, nil
 }
 
-// SaveWorldConfig saves a world config file
+// SaveWorldConfig saves a world config file using atomic write
 func SaveWorldConfig(filePath string, config WorldConfig) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(filePath, data, 0600); err != nil {
-		return fmt.Errorf("failed to write config file %s: %w", filePath, err)
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0750); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+
+	// Write to temporary file first
+	tmpFile := filePath + ".tmp"
+	if err := os.WriteFile(tmpFile, data, 0600); err != nil {
+		return fmt.Errorf("failed to write temp config file: %w", err)
+	}
+
+	// Atomic rename (on same filesystem, this is atomic)
+	if err := os.Rename(tmpFile, filePath); err != nil {
+		// Clean up temp file on error, ignore cleanup errors as we're already failing
+		_ = os.Remove(tmpFile) // #nosec G104 - cleanup on error path, already returning error
+		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
 	return nil

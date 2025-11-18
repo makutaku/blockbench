@@ -2,9 +2,11 @@ package addon
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/makutaku/blockbench/internal/minecraft"
+	"github.com/makutaku/blockbench/pkg/validation"
 )
 
 // PackRelationship represents a pack and its dependency relationships
@@ -50,6 +52,9 @@ func (da *DependencyAnalyzer) AnalyzeDependencies() (*DependencyGroup, error) {
 		rel, err := da.buildPackRelationship(pack)
 		if err != nil {
 			// If we can't analyze a pack, treat it as standalone
+			// This can happen if the manifest is corrupted or missing
+			fmt.Fprintf(os.Stderr, "Warning: Could not analyze pack %s (%s): %v\n", pack.Name, pack.PackID, err)
+			fmt.Fprintf(os.Stderr, "  Treating pack as standalone (no dependencies)\n")
 			rel = &PackRelationship{
 				Pack:         pack,
 				Dependencies: []string{},
@@ -87,8 +92,16 @@ func (da *DependencyAnalyzer) buildPackRelationship(pack minecraft.InstalledPack
 	// Extract dependencies
 	for _, dep := range manifest.Dependencies {
 		if dep.UUID != "" {
-			// Pack dependency
-			rel.Dependencies = append(rel.Dependencies, dep.UUID)
+			// Pack dependency - validate and normalize UUID
+			if !validation.ValidateUUID(dep.UUID) {
+				// Log warning but don't fail - manifest is already installed
+				fmt.Fprintf(os.Stderr, "Warning: Invalid dependency UUID format '%s' in pack %s\n",
+					dep.UUID, pack.PackID)
+				fmt.Fprintf(os.Stderr, "  Skipping this dependency in analysis\n")
+				continue
+			}
+			normalizedUUID := validation.NormalizeUUID(dep.UUID)
+			rel.Dependencies = append(rel.Dependencies, normalizedUUID)
 		}
 		if dep.ModuleName != "" {
 			// Module dependency (Script API)
@@ -150,6 +163,79 @@ func (da *DependencyAnalyzer) calculateDependents(relationships map[string]*Pack
 	}
 }
 
+// detectCircularDependencies finds circular dependency chains using DFS
+func (da *DependencyAnalyzer) detectCircularDependencies(relationships map[string]*PackRelationship) [][]PackRelationship {
+	visited := make(map[string]bool)
+	recursionStack := make(map[string]bool)
+	var allCycles [][]PackRelationship
+	cycleFound := make(map[string]bool)
+
+	var dfs func(packID string, path []string) []string
+	dfs = func(packID string, path []string) []string {
+		visited[packID] = true
+		recursionStack[packID] = true
+		path = append(path, packID)
+
+		rel, exists := relationships[packID]
+		if !exists {
+			recursionStack[packID] = false
+			return nil
+		}
+
+		for _, depID := range rel.Dependencies {
+			if !visited[depID] {
+				if cyclePath := dfs(depID, path); cyclePath != nil {
+					return cyclePath
+				}
+			} else if recursionStack[depID] {
+				// Found cycle - extract it from path
+				cycleStart := -1
+				for i, id := range path {
+					if id == depID {
+						cycleStart = i
+						break
+					}
+				}
+				if cycleStart != -1 {
+					return path[cycleStart:]
+				}
+			}
+		}
+
+		recursionStack[packID] = false
+		return nil
+	}
+
+	// Find all cycles
+	for packID := range relationships {
+		if !visited[packID] {
+			if cyclePath := dfs(packID, []string{}); cyclePath != nil {
+				// Check if we've already found this cycle (avoid duplicates)
+				cycleKey := ""
+				for _, id := range cyclePath {
+					cycleKey += id + ","
+				}
+				if !cycleFound[cycleKey] {
+					cycleFound[cycleKey] = true
+
+					// Convert path to PackRelationships
+					cyclePacks := make([]PackRelationship, 0, len(cyclePath))
+					for _, id := range cyclePath {
+						if rel, ok := relationships[id]; ok {
+							cyclePacks = append(cyclePacks, *rel)
+						}
+					}
+					if len(cyclePacks) > 0 {
+						allCycles = append(allCycles, cyclePacks)
+					}
+				}
+			}
+		}
+	}
+
+	return allCycles
+}
+
 // groupPacksByRelationships categorizes packs based on their dependency patterns
 func (da *DependencyAnalyzer) groupPacksByRelationships(relationships map[string]*PackRelationship) *DependencyGroup {
 	group := &DependencyGroup{
@@ -159,12 +245,29 @@ func (da *DependencyAnalyzer) groupPacksByRelationships(relationships map[string
 		CircularGroups:  make([][]PackRelationship, 0),
 	}
 
-	// Track processed packs to handle circular dependencies
+	// Detect circular dependencies first
+	group.CircularGroups = da.detectCircularDependencies(relationships)
+
+	// Track packs in circular dependencies
+	inCircularGroup := make(map[string]bool)
+	for _, cycle := range group.CircularGroups {
+		for _, rel := range cycle {
+			inCircularGroup[rel.Pack.PackID] = true
+		}
+	}
+
+	// Track processed packs
 	processed := make(map[string]bool)
 
 	for packID, rel := range relationships {
 		if processed[packID] {
-			continue // Already processed as part of a circular group
+			continue // Already processed
+		}
+
+		// Skip packs that are in circular groups (they're already categorized)
+		if inCircularGroup[packID] {
+			processed[packID] = true
+			continue
 		}
 
 		hasDependencies := len(rel.Dependencies) > 0
@@ -180,9 +283,8 @@ func (da *DependencyAnalyzer) groupPacksByRelationships(relationships map[string
 			// Dependent pack (depends on others, but nothing depends on it)
 			group.DependentPacks = append(group.DependentPacks, *rel)
 		} else {
-			// Pack has both dependencies and dependents - could be circular
-			// For now, classify as dependent pack
-			// TODO: Implement proper circular dependency detection
+			// Pack has both dependencies and dependents but not circular
+			// Classify as dependent pack (it's part of a dependency chain)
 			group.DependentPacks = append(group.DependentPacks, *rel)
 		}
 

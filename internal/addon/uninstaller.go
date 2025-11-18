@@ -75,7 +75,7 @@ func (u *Uninstaller) UninstallAddon(identifier string, options UninstallOptions
 	}
 
 	// Step 2: Check for dependencies
-	dependents, err := u.checkDependencies(packToRemove.PackID)
+	dependents, err := u.checkDependencies(packToRemove.PackID, options.Verbose, result)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Dependency check failed: %v", err))
 		return result, err
@@ -185,7 +185,7 @@ func (u *Uninstaller) findAddonPack(identifier string, byUUID bool) (*minecraft.
 }
 
 // checkDependencies checks if other packs depend on the pack being removed
-func (u *Uninstaller) checkDependencies(packID string) ([]string, error) {
+func (u *Uninstaller) checkDependencies(packID string, verbose bool, result *UninstallResult) ([]string, error) {
 	var dependents []string
 
 	installedPacks, err := u.server.ListInstalledPacks()
@@ -202,7 +202,16 @@ func (u *Uninstaller) checkDependencies(packID string) ([]string, error) {
 		// Try to load the pack's manifest to check dependencies
 		manifest, err := u.loadPackManifest(pack.PackID, pack.Type)
 		if err != nil {
-			// If we can't load the manifest, we can't check dependencies
+			// If we can't load the manifest, warn but continue
+			// (manifest may not exist if pack is broken or was manually installed)
+			warning := fmt.Sprintf("Could not verify dependencies for pack %s (%s): %v", pack.Name, pack.PackID, err)
+			if verbose {
+				fmt.Printf("Warning: %s\n", warning)
+				fmt.Println("  Dependency check for this pack will be incomplete")
+			}
+			if result != nil {
+				result.Warnings = append(result.Warnings, "Incomplete dependency check: "+warning)
+			}
 			continue
 		}
 
@@ -299,7 +308,7 @@ func (u *Uninstaller) performDryRunSimulation(packToRemove *minecraft.InstalledP
 	}
 
 	// Simulate dependency check
-	dependents, err := u.checkDependencies(packToRemove.PackID)
+	dependents, err := u.checkDependencies(packToRemove.PackID, options.Verbose, result)
 	if err != nil {
 		result.Errors = append(result.Errors, fmt.Sprintf("Dependency check failed: %v", err))
 		return result, err

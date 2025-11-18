@@ -113,7 +113,7 @@ func (s *Server) UninstallPack(packID string) error {
 		return nil
 	}
 
-	return fmt.Errorf("pack with ID %s not found", packID)
+	return fmt.Errorf("pack with UUID %s is not installed on this server. Use 'blockbench list <server-path>' to see all installed packs", packID)
 }
 
 // ListInstalledPacks returns a list of all installed packs
