@@ -321,8 +321,9 @@ func TestSaveWorldConfigInvalidPath(t *testing.T) {
 		{PackID: "test", Version: [3]int{1, 0, 0}},
 	}
 
-	// Try to save to invalid path (non-existent directory)
-	err := SaveWorldConfig("/invalid/path/config.json", config)
+	// Try to save to invalid path (using a file as a directory path)
+	// This should fail because /dev/null is a file, not a directory
+	err := SaveWorldConfig("/dev/null/config.json", config)
 	if err == nil {
 		t.Error("Expected error for invalid save path")
 	}

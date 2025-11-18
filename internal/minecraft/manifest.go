@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/makutaku/blockbench/pkg/validation"
 )
 
 // ManifestHeader represents the header section of a manifest.json file
@@ -111,7 +113,11 @@ func (m *Manifest) GetDisplayName() string {
 	if m.Header.Name != "" {
 		return m.Header.Name
 	}
-	return fmt.Sprintf("Pack-%s", m.Header.UUID[:8])
+	// Ensure UUID is long enough before slicing
+	if len(m.Header.UUID) >= 8 {
+		return fmt.Sprintf("Pack-%s", m.Header.UUID[:8])
+	}
+	return fmt.Sprintf("Pack-%s", m.Header.UUID)
 }
 
 // GetVersionString returns the version as a string
@@ -155,19 +161,86 @@ func ParseManifestFromReader(reader io.Reader) (*Manifest, error) {
 	return &manifest, nil
 }
 
-// ValidateManifest performs additional validation on a manifest
+// ValidateManifest performs comprehensive validation on a manifest
 func ValidateManifest(manifest *Manifest) error {
 	if manifest.FormatVersion < 1 || manifest.FormatVersion > 2 {
-		return fmt.Errorf("unsupported format version: %d", manifest.FormatVersion)
+		return fmt.Errorf("unsupported format version: %d (expected 1 or 2)", manifest.FormatVersion)
 	}
 
-	// Check for duplicate module UUIDs
+	// Validate header UUID format
+	if !validation.ValidateUUID(manifest.Header.UUID) {
+		return fmt.Errorf("invalid header UUID format: '%s'", manifest.Header.UUID)
+	}
+
+	// Validate version numbers are non-negative
+	for i, v := range manifest.Header.Version {
+		if v < 0 {
+			return fmt.Errorf("header version[%d] cannot be negative: %d", i, v)
+		}
+	}
+
+	// Validate min_engine_version if present
+	if manifest.Header.MinVersion != [3]int{0, 0, 0} {
+		for i, v := range manifest.Header.MinVersion {
+			if v < 0 {
+				return fmt.Errorf("min_engine_version[%d] cannot be negative: %d", i, v)
+			}
+		}
+	}
+
+	// Validate modules
+	if len(manifest.Modules) == 0 {
+		return fmt.Errorf("manifest must have at least one module")
+	}
+
+	validModuleTypes := map[string]bool{
+		"data":      true,
+		"resources": true,
+		"script":    true,
+		"skin_pack": true,
+		"world_template": true,
+	}
+
 	moduleUUIDs := make(map[string]bool)
-	for _, module := range manifest.Modules {
+	for i, module := range manifest.Modules {
+		// Validate module UUID
+		if !validation.ValidateUUID(module.UUID) {
+			return fmt.Errorf("invalid module UUID format: '%s' at index %d", module.UUID, i)
+		}
+
+		// Check for duplicate module UUIDs
 		if moduleUUIDs[module.UUID] {
 			return fmt.Errorf("duplicate module UUID: %s", module.UUID)
 		}
 		moduleUUIDs[module.UUID] = true
+
+		// Validate module type
+		if !validModuleTypes[module.Type] {
+			return fmt.Errorf("invalid module type '%s' at index %d (valid types: data, resources, script, skin_pack, world_template)", module.Type, i)
+		}
+
+		// Validate module version
+		for j, v := range module.Version {
+			if v < 0 {
+				return fmt.Errorf("module version[%d] cannot be negative: %d (module index %d)", j, v, i)
+			}
+		}
+	}
+
+	// Validate dependencies (if any)
+	for i, dep := range manifest.Dependencies {
+		if dep.UUID != "" {
+			if !validation.ValidateUUID(dep.UUID) {
+				return fmt.Errorf("invalid dependency UUID format: '%s' at index %d", dep.UUID, i)
+			}
+
+			// Validate dependency version
+			for j, v := range dep.Version {
+				if v < 0 {
+					return fmt.Errorf("dependency version[%d] cannot be negative: %d (dependency index %d)", j, v, i)
+				}
+			}
+		}
 	}
 
 	return nil

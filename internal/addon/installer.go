@@ -145,15 +145,32 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 		return result, err
 	}
 
-	// Show conflict check results
+	// Check for missing dependencies
+	missingDeps, err := i.validateDependencies(extractedAddon)
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("Dependency validation failed: %v", err))
+		return result, err
+	}
+
+	// Show conflict check and dependency validation results
 	conflictDetails := []string{}
 	if len(conflicts) == 0 {
 		conflictDetails = append(conflictDetails, "No UUID conflicts detected")
 	} else {
 		for _, conflict := range conflicts {
-			conflictDetails = append(conflictDetails, fmt.Sprintf("Conflict found: %s", conflict))
+			conflictDetails = append(conflictDetails, fmt.Sprintf("⚠️  Conflict: %s", conflict))
 		}
 	}
+
+	if len(missingDeps) == 0 {
+		conflictDetails = append(conflictDetails, "All dependencies satisfied")
+	} else {
+		for _, dep := range missingDeps {
+			conflictDetails = append(conflictDetails, fmt.Sprintf("⚠️  Missing dependency: %s", dep))
+			result.Warnings = append(result.Warnings, dep)
+		}
+	}
+
 	conflictDetails = append(conflictDetails, fmt.Sprintf("Checked against %d existing pack(s)", len(conflicts)))
 	if err := showStepResult("Conflict detection", conflictDetails, "Backup creation", "Create a backup of the current server state to enable rollback if the installation fails.", options); err != nil {
 		return result, err
@@ -164,6 +181,10 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 			result.Warnings = append(result.Warnings, fmt.Sprintf("Conflict detected: %s", conflict))
 		}
 		return result, fmt.Errorf("conflicts detected, use --force to override")
+	}
+
+	if len(missingDeps) > 0 && !options.ForceUpdate {
+		return result, fmt.Errorf("missing dependencies detected. Install required packs first or use --force to proceed anyway (may cause issues)")
 	}
 
 	// For dry-run, simulate the installation operations and show detailed information
@@ -345,6 +366,46 @@ func (i *Installer) checkForConflicts(addon *ExtractedAddon) ([]string, error) {
 	}
 
 	return conflicts, nil
+}
+
+// validateDependencies checks that all pack dependencies are satisfied
+func (i *Installer) validateDependencies(addon *ExtractedAddon) ([]string, error) {
+	var missingDeps []string
+
+	// Get all currently installed packs
+	installedPacks, err := i.server.ListInstalledPacks()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list installed packs: %w", err)
+	}
+
+	// Build set of installed UUIDs
+	installedUUIDs := make(map[string]bool)
+	for _, pack := range installedPacks {
+		installedUUIDs[pack.PackID] = true
+	}
+
+	// Add UUIDs from packs being installed (self-satisfied dependencies)
+	for _, newPack := range addon.GetAllPacks() {
+		installedUUIDs[newPack.Manifest.Header.UUID] = true
+	}
+
+	// Check each pack's dependencies
+	for _, newPack := range addon.GetAllPacks() {
+		for _, dep := range newPack.Manifest.Dependencies {
+			if dep.UUID != "" {
+				// Check if dependency exists
+				if !installedUUIDs[dep.UUID] {
+					missingDeps = append(missingDeps,
+						fmt.Sprintf("Pack '%s' requires dependency UUID %s which is not installed",
+							newPack.Manifest.GetDisplayName(), dep.UUID))
+				}
+			}
+			// Module dependencies (@minecraft/server, etc.) are checked by Minecraft itself at runtime
+			// so we don't validate those here
+		}
+	}
+
+	return missingDeps, nil
 }
 
 // installPacks installs all packs in the addon

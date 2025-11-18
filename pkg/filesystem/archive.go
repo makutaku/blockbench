@@ -6,8 +6,25 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
+
+// Default maximum file size for decompression (100MB)
+const defaultMaxFileSize = 100 * 1024 * 1024
+
+// getMaxFileSize returns the maximum file size for extraction
+// Can be configured via BLOCKBENCH_MAX_FILE_SIZE environment variable
+func getMaxFileSize() int64 {
+	if envSize := os.Getenv("BLOCKBENCH_MAX_FILE_SIZE"); envSize != "" {
+		if size, err := strconv.ParseInt(envSize, 10, 64); err == nil && size > 0 {
+			return size
+		}
+		// If invalid, fall back to default
+		fmt.Fprintf(os.Stderr, "Warning: Invalid BLOCKBENCH_MAX_FILE_SIZE value '%s', using default %d bytes\n", envSize, defaultMaxFileSize)
+	}
+	return defaultMaxFileSize
+}
 
 // ExtractArchive extracts a ZIP archive to a destination directory
 func ExtractArchive(archivePath, destDir string) error {
@@ -47,6 +64,11 @@ func extractFile(file *zip.File, destDir string) error {
 		return os.MkdirAll(destPath, file.FileInfo().Mode())
 	}
 
+	// Prevent symlink attacks - symlinks in archives are a security risk
+	if file.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("symlinks are not allowed in archives (security risk): %s", file.Name)
+	}
+
 	// Create parent directories
 	if err := os.MkdirAll(filepath.Dir(destPath), 0750); err != nil {
 		return err
@@ -68,7 +90,7 @@ func extractFile(file *zip.File, destDir string) error {
 	defer destFile.Close()
 
 	// Copy file contents with size limit to prevent decompression bombs
-	const maxFileSize = 100 * 1024 * 1024 // 100MB limit per file
+	maxFileSize := getMaxFileSize()
 	limitedReader := io.LimitReader(srcFile, maxFileSize)
 	written, err := io.Copy(destFile, limitedReader)
 	if err != nil {
@@ -77,7 +99,7 @@ func extractFile(file *zip.File, destDir string) error {
 
 	// Check if we hit the limit (potential decompression bomb)
 	if written >= maxFileSize {
-		return fmt.Errorf("file too large after decompression: %s (exceeded 100MB limit)", file.Name)
+		return fmt.Errorf("file too large after decompression: %s (exceeded %d bytes limit)", file.Name, maxFileSize)
 	}
 
 	return nil
