@@ -48,3 +48,10 @@ release-notes-*.md
 
 # Claude Code local settings
 .claude/
+
+# Claude Code conversation artifacts (should not be committed)
+*ANALYSIS*.md
+FIXES_REQUIRED.md
+IMPLEMENTATION_ROADMAP.md
+PERFORMANCE.md
+COMPREHENSIVE_ANALYSIS*.md
