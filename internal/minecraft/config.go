@@ -205,7 +205,9 @@ func (wc WorldConfig) HasPack(packID string) bool {
 func (wc WorldConfig) GetPack(packID string) (*PackReference, bool) {
 	for _, pack := range wc {
 		if pack.PackID == packID {
-			return &pack, true
+			// Create a copy to avoid returning pointer to loop variable
+			packCopy := pack
+			return &packCopy, true
 		}
 	}
 	return nil, false
