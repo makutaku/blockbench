@@ -58,6 +58,10 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Track the original pack entry for rollback (if it exists)
+	// This handles --force updates where we're replacing an existing pack
+	originalPack, packExisted := config.GetPack(manifest.Header.UUID)
+
 	config = AddPackToConfig(config, manifest.Header.UUID, manifest.Header.Version)
 
 	if err := SaveWorldConfig(configFile, config); err != nil {
@@ -66,12 +70,26 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 
 	// ATOMIC OPERATION STEP 2: Copy pack files (if this fails, rollback will restore old config)
 	if err := copyDir(packDir, finalPackDir); err != nil {
-		// Rollback config change - remove the pack entry we just added
-		rollbackConfig := RemovePackFromConfig(config, manifest.Header.UUID)
+		// Rollback config change
+		var rollbackConfig WorldConfig
+		if packExisted {
+			// Pack existed before - restore the original version
+			rollbackConfig = RemovePackFromConfig(config, manifest.Header.UUID)
+			rollbackConfig = AddPackToConfig(rollbackConfig, originalPack.PackID, originalPack.Version)
+		} else {
+			// Pack was new - just remove the entry we added
+			rollbackConfig = RemovePackFromConfig(config, manifest.Header.UUID)
+		}
+
 		if rollbackErr := SaveWorldConfig(configFile, rollbackConfig); rollbackErr != nil {
 			// Config rollback failed - log warning but return original error
 			fmt.Fprintf(os.Stderr, "Warning: Failed to rollback config after copy failure: %v\n", rollbackErr)
-			fmt.Fprintf(os.Stderr, "Manual cleanup may be required: remove pack %s from %s\n", manifest.Header.UUID, configFile)
+			if packExisted {
+				fmt.Fprintf(os.Stderr, "Manual cleanup may be required: restore pack %s version %d.%d.%d in %s\n",
+					manifest.Header.UUID, originalPack.Version[0], originalPack.Version[1], originalPack.Version[2], configFile)
+			} else {
+				fmt.Fprintf(os.Stderr, "Manual cleanup may be required: remove pack %s from %s\n", manifest.Header.UUID, configFile)
+			}
 		}
 		return fmt.Errorf("failed to copy pack files: %w", err)
 	}
