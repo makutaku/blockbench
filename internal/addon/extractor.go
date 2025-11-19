@@ -220,30 +220,43 @@ func ValidateAddonFile(addonPath string) error {
 }
 
 // extractNestedMcpacks extracts any .mcpack files found in the directory
+// Recursively extracts nested .mcpack files up to a maximum depth to prevent infinite loops
 func extractNestedMcpacks(rootDir string) error {
-	mcpackFiles, err := findMcpackFiles(rootDir)
-	if err != nil {
-		return fmt.Errorf("failed to find mcpack files: %w", err)
-	}
+	// Maximum nesting depth to prevent infinite loops from malicious archives
+	const maxIterations = 10
 
-	for _, mcpackPath := range mcpackFiles {
-		// Get the filename without extension for the subdirectory name
-		filename := filepath.Base(mcpackPath)
-		dirName := strings.TrimSuffix(filename, filepath.Ext(filename))
-		extractDir := filepath.Join(filepath.Dir(mcpackPath), dirName)
-
-		// Extract the .mcpack file
-		if err := filesystem.ExtractArchive(mcpackPath, extractDir); err != nil {
-			return fmt.Errorf("failed to extract mcpack %s: %w", mcpackPath, err)
+	// Keep extracting until no more .mcpack files are found
+	for iteration := 0; iteration < maxIterations; iteration++ {
+		mcpackFiles, err := findMcpackFiles(rootDir)
+		if err != nil {
+			return fmt.Errorf("failed to find mcpack files: %w", err)
 		}
 
-		// Remove the original .mcpack file to avoid confusion
-		if err := os.Remove(mcpackPath); err != nil {
-			return fmt.Errorf("failed to remove original mcpack file %s: %w", mcpackPath, err)
+		// If no .mcpack files found, extraction is complete
+		if len(mcpackFiles) == 0 {
+			return nil
+		}
+
+		// Extract all found .mcpack files in this iteration
+		for _, mcpackPath := range mcpackFiles {
+			// Get the filename without extension for the subdirectory name
+			filename := filepath.Base(mcpackPath)
+			dirName := strings.TrimSuffix(filename, filepath.Ext(filename))
+			extractDir := filepath.Join(filepath.Dir(mcpackPath), dirName)
+
+			// Extract the .mcpack file
+			if err := filesystem.ExtractArchive(mcpackPath, extractDir); err != nil {
+				return fmt.Errorf("failed to extract mcpack %s: %w", mcpackPath, err)
+			}
+
+			// Remove the original .mcpack file to avoid confusion
+			if err := os.Remove(mcpackPath); err != nil {
+				return fmt.Errorf("failed to remove original mcpack file %s: %w", mcpackPath, err)
+			}
 		}
 	}
 
-	return nil
+	return fmt.Errorf("exceeded maximum nesting depth (%d) for mcpack extraction - possible malformed or malicious archive", maxIterations)
 }
 
 // findMcpackFiles recursively finds all .mcpack files in a directory
