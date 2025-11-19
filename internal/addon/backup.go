@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/makutaku/blockbench/internal/minecraft"
 	"github.com/makutaku/blockbench/pkg/filesystem"
@@ -80,17 +81,38 @@ func (bm *BackupManager) CreateUninstallBackup(addonName, addonUUID string) (*fi
 // findAddonDirectories finds the directories for a specific addon
 func (bm *BackupManager) findAddonDirectories(addonUUID string) ([]string, error) {
 	var dirs []string
+	var errors []string
 
 	// Check behavior packs directory
 	behaviorDir, err := bm.findAddonInDirectory(bm.server.Paths.BehaviorPacksDir, addonUUID)
 	if err == nil {
 		dirs = append(dirs, behaviorDir)
+	} else {
+		// Only track non-"not found" errors
+		if !os.IsNotExist(err) && !strings.Contains(err.Error(), "not found") {
+			errors = append(errors, fmt.Sprintf("behavior packs: %v", err))
+		}
 	}
 
 	// Check resource packs directory
 	resourceDir, err := bm.findAddonInDirectory(bm.server.Paths.ResourcePacksDir, addonUUID)
 	if err == nil {
 		dirs = append(dirs, resourceDir)
+	} else {
+		// Only track non-"not found" errors
+		if !os.IsNotExist(err) && !strings.Contains(err.Error(), "not found") {
+			errors = append(errors, fmt.Sprintf("resource packs: %v", err))
+		}
+	}
+
+	// If we found no directories and had errors, return the errors
+	if len(dirs) == 0 && len(errors) > 0 {
+		return nil, fmt.Errorf("failed to find addon directories: %s", strings.Join(errors, "; "))
+	}
+
+	// If we found no directories and had no errors, addon doesn't exist
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("addon with UUID %s not found in any pack directory", addonUUID)
 	}
 
 	return dirs, nil

@@ -247,10 +247,18 @@ func (s *DryRunSimulator) findPackDirectory(packID string, packType minecraft.Pa
 		packPath := filepath.Join(baseDir, entry.Name())
 		manifestPath := filepath.Join(packPath, "manifest.json")
 
-		if manifest, err := minecraft.ParseManifest(manifestPath); err == nil {
-			if manifest.Header.UUID == packID {
-				return packPath, nil
+		manifest, err := minecraft.ParseManifest(manifestPath)
+		if err != nil {
+			// Log warning for non-trivial errors but continue searching
+			if !os.IsNotExist(err) {
+				// Only warn if it's not just a missing manifest file
+				fmt.Fprintf(os.Stderr, "Warning: Failed to parse manifest at %s: %v\n", manifestPath, err)
 			}
+			continue
+		}
+
+		if manifest.Header.UUID == packID {
+			return packPath, nil
 		}
 	}
 

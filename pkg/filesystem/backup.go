@@ -1,6 +1,8 @@
 package filesystem
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -235,8 +237,13 @@ func (bm *BackupManager) loadMetadata(backupID string) (*BackupMetadata, error) 
 }
 
 // generateBackupID generates a unique backup ID
+// Uses timestamp + random bytes to prevent collisions when creating multiple backups per second
 func generateBackupID() string {
-	return fmt.Sprintf("backup_%d", time.Now().Unix())
+	timestamp := time.Now().Unix()
+	randomBytes := make([]byte, 4)
+	// #nosec G104 - crypto/rand.Read only returns error on system failure, which would cause broader issues
+	_, _ = rand.Read(randomBytes)
+	return fmt.Sprintf("backup_%d_%s", timestamp, hex.EncodeToString(randomBytes))
 }
 
 // copyFile copies a single file
