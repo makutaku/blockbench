@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+@.claude/policies/file-creation-policy.md
+
 ## Development Commands
 
 ### Building
