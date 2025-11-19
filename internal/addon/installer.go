@@ -249,7 +249,7 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 	// Show pack installation results with specific paths
 	installDetails := []string{}
 	for _, pack := range extractedAddon.BehaviorPacks {
-		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), pack.Manifest.Header.UUID[:validation.UUIDShortDisplayLength])
+		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), validation.GetSafeUUIDPrefix(pack.Manifest.Header.UUID))
 		finalPackDir := filepath.Join(i.server.Paths.BehaviorPacksDir, packDirName)
 		installDetails = append(installDetails, fmt.Sprintf("Created behavior pack directory: %s", finalPackDir))
 		installDetails = append(installDetails, fmt.Sprintf("Updated world config file: %s", i.server.Paths.WorldBehaviorPacks))
@@ -259,7 +259,7 @@ func (i *Installer) InstallAddon(addonPath string, options InstallOptions) (*Ins
 			pack.Manifest.Header.Version[0], pack.Manifest.Header.Version[1], pack.Manifest.Header.Version[2]))
 	}
 	for _, pack := range extractedAddon.ResourcePacks {
-		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), pack.Manifest.Header.UUID[:validation.UUIDShortDisplayLength])
+		packDirName := fmt.Sprintf("%s_%s", pack.Manifest.GetDisplayName(), validation.GetSafeUUIDPrefix(pack.Manifest.Header.UUID))
 		finalPackDir := filepath.Join(i.server.Paths.ResourcePacksDir, packDirName)
 		installDetails = append(installDetails, fmt.Sprintf("Created resource pack directory: %s", finalPackDir))
 		installDetails = append(installDetails, fmt.Sprintf("Updated world config file: %s", i.server.Paths.WorldResourcePacks))

@@ -67,7 +67,7 @@ func (s *DryRunSimulator) SimulatePackInstallation(pack *ExtractedPack) (*Simula
 	}
 
 	// Create pack directory name (same logic as real installation)
-	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:validation.UUIDShortDisplayLength])
+	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), validation.GetSafeUUIDPrefix(manifest.Header.UUID))
 	finalPackDir := filepath.Join(targetDir, packDirName)
 
 	// Simulate config entry that would be added

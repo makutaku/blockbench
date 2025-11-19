@@ -51,6 +51,16 @@ func NormalizeUUID(uuid string) string {
 	return uuid // Return original if not the correct length
 }
 
+// GetSafeUUIDPrefix returns a safe prefix of the UUID for display purposes
+// If the UUID is shorter than the requested length, it returns the full UUID
+// This prevents panic from slice bounds errors when dealing with malformed UUIDs
+func GetSafeUUIDPrefix(uuid string) string {
+	if len(uuid) >= UUIDShortDisplayLength {
+		return uuid[:UUIDShortDisplayLength]
+	}
+	return uuid
+}
+
 // IsValidVersion checks if a version array is valid
 func IsValidVersion(version [3]int) bool {
 	for _, v := range version {

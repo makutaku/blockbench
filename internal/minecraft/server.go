@@ -48,7 +48,7 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	}
 
 	// Create pack directory name
-	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), manifest.Header.UUID[:validation.UUIDShortDisplayLength])
+	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), validation.GetSafeUUIDPrefix(manifest.Header.UUID))
 	finalPackDir := filepath.Join(targetDir, packDirName)
 
 	// Copy pack files
