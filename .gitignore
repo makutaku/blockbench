@@ -46,9 +46,10 @@ release-notes-*.md
 # Log files
 *.log
 
-# Claude Code local settings
-.claude/
-!.claude/policies/
+# Claude Code - ignore personal settings only
+.claude/local/
+.claude/settings.local.json
+CLAUDE.local.md
 
 # Claude Code conversation artifacts (should not be committed)
 *ANALYSIS*.md
