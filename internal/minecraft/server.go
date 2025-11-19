@@ -29,7 +29,8 @@ func NewServer(serverRoot string) (*Server, error) {
 	}, nil
 }
 
-// InstallPack installs a pack to the server
+// InstallPack installs a pack to the server with atomic operations
+// Updates config first, then copies files. If file copy fails, config is rolled back.
 func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	packType := manifest.GetPackType()
 
@@ -51,12 +52,7 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 	packDirName := fmt.Sprintf("%s_%s", manifest.GetDisplayName(), validation.GetSafeUUIDPrefix(manifest.Header.UUID))
 	finalPackDir := filepath.Join(targetDir, packDirName)
 
-	// Copy pack files
-	if err := copyDir(packDir, finalPackDir); err != nil {
-		return fmt.Errorf("failed to copy pack files: %w", err)
-	}
-
-	// Update world config
+	// ATOMIC OPERATION STEP 1: Update config FIRST (safer to rollback)
 	config, err := LoadWorldConfig(configFile)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -68,10 +64,23 @@ func (s *Server) InstallPack(manifest *Manifest, packDir string) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
+	// ATOMIC OPERATION STEP 2: Copy pack files (if this fails, rollback will restore old config)
+	if err := copyDir(packDir, finalPackDir); err != nil {
+		// Rollback config change - remove the pack entry we just added
+		rollbackConfig := RemovePackFromConfig(config, manifest.Header.UUID)
+		if rollbackErr := SaveWorldConfig(configFile, rollbackConfig); rollbackErr != nil {
+			// Config rollback failed - log warning but return original error
+			fmt.Fprintf(os.Stderr, "Warning: Failed to rollback config after copy failure: %v\n", rollbackErr)
+			fmt.Fprintf(os.Stderr, "Manual cleanup may be required: remove pack %s from %s\n", manifest.Header.UUID, configFile)
+		}
+		return fmt.Errorf("failed to copy pack files: %w", err)
+	}
+
 	return nil
 }
 
-// UninstallPack removes a pack from the server
+// UninstallPack removes a pack from the server with atomic operations
+// Updates config first, then removes files. If file removal fails, config is rolled back.
 func (s *Server) UninstallPack(packID string) error {
 	// Try to find and remove from behavior packs
 	behaviorConfig, err := LoadWorldConfig(s.Paths.WorldBehaviorPacks)
@@ -80,15 +89,22 @@ func (s *Server) UninstallPack(packID string) error {
 	}
 
 	if behaviorConfig.HasPack(packID) {
-		// Remove from behavior packs directory
-		if err := s.removePackDir(s.Paths.BehaviorPacksDir, packID); err != nil {
-			return fmt.Errorf("failed to remove behavior pack directory: %w", err)
+		// ATOMIC OPERATION STEP 1: Update config FIRST (remove from config)
+		updatedBehaviorConfig := RemovePackFromConfig(behaviorConfig, packID)
+		if err := SaveWorldConfig(s.Paths.WorldBehaviorPacks, updatedBehaviorConfig); err != nil {
+			return fmt.Errorf("failed to save behavior config: %w", err)
 		}
 
-		// Update config
-		behaviorConfig = RemovePackFromConfig(behaviorConfig, packID)
-		if err := SaveWorldConfig(s.Paths.WorldBehaviorPacks, behaviorConfig); err != nil {
-			return fmt.Errorf("failed to save behavior config: %w", err)
+		// ATOMIC OPERATION STEP 2: Remove from behavior packs directory
+		// If this fails, rollback will restore the config with the pack entry
+		if err := s.removePackDir(s.Paths.BehaviorPacksDir, packID); err != nil {
+			// Rollback config change - restore the pack entry we just removed
+			if rollbackErr := SaveWorldConfig(s.Paths.WorldBehaviorPacks, behaviorConfig); rollbackErr != nil {
+				// Config rollback failed - log warning but return original error
+				fmt.Fprintf(os.Stderr, "Warning: Failed to rollback config after directory removal failure: %v\n", rollbackErr)
+				fmt.Fprintf(os.Stderr, "Manual cleanup may be required: re-add pack %s to %s\n", packID, s.Paths.WorldBehaviorPacks)
+			}
+			return fmt.Errorf("failed to remove behavior pack directory: %w", err)
 		}
 
 		return nil
@@ -101,15 +117,22 @@ func (s *Server) UninstallPack(packID string) error {
 	}
 
 	if resourceConfig.HasPack(packID) {
-		// Remove from resource packs directory
-		if err := s.removePackDir(s.Paths.ResourcePacksDir, packID); err != nil {
-			return fmt.Errorf("failed to remove resource pack directory: %w", err)
+		// ATOMIC OPERATION STEP 1: Update config FIRST (remove from config)
+		updatedResourceConfig := RemovePackFromConfig(resourceConfig, packID)
+		if err := SaveWorldConfig(s.Paths.WorldResourcePacks, updatedResourceConfig); err != nil {
+			return fmt.Errorf("failed to save resource config: %w", err)
 		}
 
-		// Update config
-		resourceConfig = RemovePackFromConfig(resourceConfig, packID)
-		if err := SaveWorldConfig(s.Paths.WorldResourcePacks, resourceConfig); err != nil {
-			return fmt.Errorf("failed to save resource config: %w", err)
+		// ATOMIC OPERATION STEP 2: Remove from resource packs directory
+		// If this fails, rollback will restore the config with the pack entry
+		if err := s.removePackDir(s.Paths.ResourcePacksDir, packID); err != nil {
+			// Rollback config change - restore the pack entry we just removed
+			if rollbackErr := SaveWorldConfig(s.Paths.WorldResourcePacks, resourceConfig); rollbackErr != nil {
+				// Config rollback failed - log warning but return original error
+				fmt.Fprintf(os.Stderr, "Warning: Failed to rollback config after directory removal failure: %v\n", rollbackErr)
+				fmt.Fprintf(os.Stderr, "Manual cleanup may be required: re-add pack %s to %s\n", packID, s.Paths.WorldResourcePacks)
+			}
+			return fmt.Errorf("failed to remove resource pack directory: %w", err)
 		}
 
 		return nil
